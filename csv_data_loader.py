@@ -41,6 +41,7 @@ class CSVDataLoader:
             Path('data/bristol_lap_data.csv'),
             Path('lap_data.csv'),
         ]
+        self.ldx_path = Path('data/processed')
 
     def find_data_file(self) -> Optional[Path]:
         """Find the first available CSV data file"""
@@ -51,7 +52,7 @@ class CSVDataLoader:
 
     def load_data(self, filepath: Optional[Path] = None) -> Optional[pd.DataFrame]:
         """
-        Load lap data from CSV file
+        Load lap data from CSV file or .ldx files
 
         Args:
             filepath: Optional path to CSV file. If None, searches common locations.
@@ -60,12 +61,19 @@ class CSVDataLoader:
             DataFrame with lap data, or None if no data found
         """
 
+        # First try to load .ldx files (MoTeC format with setup data)
+        ldx_data = self._load_ldx_files()
+        if ldx_data is not None:
+            return ldx_data
+
+        # Fall back to CSV
         if filepath is None:
             filepath = self.find_data_file()
 
         if filepath is None:
-            print("⚠️  No CSV data file found")
-            print(f"   Searched: {[str(p) for p in self.data_paths]}")
+            print("⚠️  No CSV or .ldx data files found")
+            print(f"   CSV searched: {[str(p) for p in self.data_paths]}")
+            print(f"   LDX searched: {self.ldx_path}/*.ldx")
             return None
 
         try:
@@ -80,6 +88,36 @@ class CSVDataLoader:
 
         except Exception as e:
             print(f"❌ Error loading CSV: {e}")
+            return None
+
+    def _load_ldx_files(self) -> Optional[pd.DataFrame]:
+        """Load data from .ldx files (MoTeC format)"""
+
+        ldx_files = list(self.ldx_path.glob('*.ldx')) if self.ldx_path.exists() else []
+
+        if not ldx_files:
+            return None
+
+        try:
+            from telemetry_parser import TelemetryParser
+            parser = TelemetryParser()
+
+            all_sessions = []
+            for ldx_file in ldx_files:
+                data = parser.parse_ldx_file(ldx_file)
+                all_sessions.append(data)
+
+            df = pd.DataFrame(all_sessions)
+            print(f"✓ Loaded real data from {len(ldx_files)} .ldx files")
+            print(f"  {len(df)} sessions from {df['venue'].iloc[0] if 'venue' in df.columns else 'unknown track'}")
+
+            # Validate and prepare
+            df = self._validate_and_prepare(df)
+
+            return df
+
+        except Exception as e:
+            print(f"❌ Error loading .ldx files: {e}")
             return None
 
     def _validate_and_prepare(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -198,8 +236,14 @@ class CSVDataLoader:
         Aggregates lap data to session level if needed
         """
 
+        # Check if data is already at session level (has fastest_time but not lap_number)
+        if 'fastest_time' in df.columns and 'lap_number' not in df.columns:
+            # Already session-level data (like from .ldx files)
+            print(f"  Using {len(df)} session-level records")
+            return df
+
         # If we have lap-level data, aggregate to session level
-        if 'session_id' in df.columns:
+        if 'session_id' in df.columns and 'lap_time' in df.columns:
             # Group by session and take the best lap from each session
             session_data = []
 
