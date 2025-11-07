@@ -199,7 +199,8 @@ from driver_feedback_interpreter import interpret_driver_feedback_with_llm
 # Try to use LLM (falls back to rule-based if no API key)
 driver_feedback = interpret_driver_feedback_with_llm(
     raw_driver_feedback,
-    llm_provider="anthropic"  # or "openai" or "mock"
+    llm_provider="anthropic",  # or "openai" or "mock"
+    multi_issue=False  # Use legacy single-issue format for demo
 )
 
 print(f"   [OK] Interpretation complete")
