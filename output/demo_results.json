@@ -1,0 +1,23 @@
+{
+  "recommendation": "No strong single-parameter impact found. 'cross_weight' was closest (-0.082). Hold setup and test interaction effects.",
+  "analysis": {
+    "most_impactful": [
+      "cross_weight",
+      -0.08233940093786056
+    ],
+    "all_impacts": {
+      "tire_psi_lf": 0.012066753612234124,
+      "tire_psi_rf": 1.3877787807814457e-17,
+      "tire_psi_lr": 0.0,
+      "tire_psi_rr": 0.0,
+      "cross_weight": -0.08233940093786056,
+      "track_bar_height_left": -0.027482932294554646,
+      "spring_lf": 0.0,
+      "spring_rf": 0.0
+    }
+  },
+  "best_time": 15.237346136066206,
+  "baseline_time": 15.543,
+  "improvement": 0.30565386393379335,
+  "num_sessions": 20
+}
