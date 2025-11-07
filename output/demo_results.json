@@ -1,6 +1,6 @@
 {
   "data_source": "real_csv_data",
-  "recommendation": "STRONG RECOMMENDATION: Reduce tire_psi_rr (strong positive correlation: 0.551)\n   Expected effect: Significantly faster lap times",
+  "recommendation": "STRONG RECOMMENDATION: Increase cross_weight (correlation: -0.289)\n   Expected effect: Significantly faster lap times\n    Prioritizes driver complaint: Understeer (tight front end)\n    Note: Data suggested different parameter, but trusting driver expertise",
   "analysis": {
     "method": "correlation",
     "all_impacts": {
