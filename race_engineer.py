@@ -432,6 +432,33 @@ def engineer_agent(state: RaceEngineerState):
             for p, i in sorted_all[1:min(4, len(sorted_all))]:
                 print(f"      • {p:25s}: {i:+.3f}")
 
+    # DECISION 4 (OPTIONAL): Generate LLM explanation for crew understanding
+    # This showcases API integration and prompt engineering skills
+    try:
+        from llm_explainer import generate_llm_explanation
+
+        decision_context = {
+            'driver_complaint': driver_diagnosis.get('diagnosis', 'None'),
+            'data_top_param': analysis['most_impactful'][0],
+            'data_correlation': analysis['most_impactful'][1],
+            'priority_features': priority_features,
+            'decision_type': decision_rationale,
+            'recommended_param': param,
+            'recommended_impact': impact
+        }
+
+        llm_explanation = generate_llm_explanation(decision_context)
+        if llm_explanation:
+            print(f"\n   [CREW CHIEF PERSPECTIVE]")
+            print(f"   {llm_explanation}")
+
+    except ImportError:
+        # llm_explainer module not available, skip this step
+        pass
+    except Exception as e:
+        # Don't fail the whole workflow if LLM explanation fails
+        print(f"\n   [INFO] LLM explanation unavailable: {str(e)[:50]}")
+
     return {"recommendation": rec}
 
 # == ERROR HANDLER ==
