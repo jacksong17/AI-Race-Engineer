@@ -1,0 +1,103 @@
+<?xml version="1.0"?>
+<LDXFile Locale="English_United States.1252" DefaultLocale="C" Version="1.6">
+ <Layers>
+  <Details>
+   <String Id="Event" Value="Test"/>
+   <String Id="Session" Value="Test"/>
+   <String Id="Venue" Value="bristol"/>
+   <Numeric Id="Venue Length" Value="0.8282" Unit="km" DPS="2"/>
+   <Numeric Id="Track Temp" Value="32.65" Unit="C" DPS="0"/>
+   <Numeric Id="Air Temp" Value="18.4" Unit="C" DPS="2"/>
+   <Numeric Id="Rel Humidity" Value="95" Unit="%" DPS="2"/>
+   <Numeric Id="Baro Pressure" Value="28.41" Unit="mmHg" DPS="2"/>
+   <Numeric Id="Wind Speed" Value="3.22" Unit="km/h" DPS="2"/>
+   <String Id="Wind Direction" Value="N"/>
+   <String Id="Vehicle Type" Value="Car"/>
+   <Numeric Id="CarSetup_Tires_RightFront_LastHotPressure" Value="324" Unit="kPa" DPS="1"/>
+   <Numeric Id="CarSetup_UpdateCount" Value="82" Unit="" DPS="2"/>
+   <String Id="CarSetup_Tires_LeftRear_LastTempsOMI" Value="62C, 62C, 58C"/>
+   <Numeric Id="CarSetup_Chassis_LeftRear_LsCompression" Value="7" Unit="clicks" DPS="2"/>
+   <Numeric Id="CarSetup_Tires_LeftRear_LastHotPressure" Value="166" Unit="kPa" DPS="2"/>
+   <Numeric Id="CarSetup_Tires_RightRear_ColdPressure" Value="310" Unit="kPa" DPS="1"/>
+   <Numeric Id="CarSetup_Tires_LeftFront_ColdPressure" Value="158" Unit="kPa" DPS="1"/>
+   <String Id="CarSetup_Chassis_LeftRear_TruckArmMount" Value="bottom"/>
+   <Numeric Id="CarSetup_Tires_RightRear_LastHotPressure" Value="328" Unit="kPa" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_LeftRear_SpringPerchOffset" Value="-193" Unit="mm" DPS="2"/>
+   <Numeric Id="CarSetup_Tires_LeftFront_LastHotPressure" Value="165" Unit="kPa" DPS="2"/>
+   <Numeric Id="CarSetup_Tires_LeftRear_ColdPressure" Value="158" Unit="kPa" DPS="2"/>
+   <String Id="CarSetup_Tires_LeftFront_LastTempsOMI" Value="62C, 61C, 51C"/>
+   <String Id="CarSetup_Tires_RightRear_TreadRemaining" Value="96%, 96%, 96%"/>
+   <String Id="CarSetup_Tires_LeftFront_TreadRemaining" Value="97%, 98%, 99%"/>
+   <Numeric Id="CarSetup_Chassis_RightFront_LsCompression" Value="7" Unit="clicks" DPS="2"/>
+   <String Id="CarSetup_Tires_LeftRear_TreadRemaining" Value="98%, 98%, 98%"/>
+   <Numeric Id="CarSetup_Chassis_LeftFront_RideHeight" Value="119" Unit="mm" DPS="2"/>
+   <Numeric Id="CarSetup_Tires_RightFront_ColdPressure" Value="310" Unit="kPa" DPS="1"/>
+   <Numeric Id="CarSetup_Chassis_LeftFront_SpringPerchOffset" Value="-102" Unit="mm" DPS="2"/>
+   <String Id="CarSetup_Tires_RightFront_LastTempsIMO" Value="69C, 68C, 65C"/>
+   <Numeric Id="CarSetup_Chassis_LeftFront_Camber" Value="5.1" Unit="deg" DPS="0"/>
+   <String Id="CarSetup_Tires_RightFront_TreadRemaining" Value="97%, 98%, 98%"/>
+   <Numeric Id="CarSetup_Chassis_RightFront_Camber" Value="-4.3" Unit="deg" DPS="0"/>
+   <String Id="CarSetup_Tires_RightRear_LastTempsIMO" Value="77C, 78C, 78C"/>
+   <Numeric Id="CarSetup_Chassis_FrontArb_Diameter" Value="48" Unit="mm" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_Front_BallastForward" Value="25" Unit="mm" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_RightFront_HsCompSlope" Value="5" Unit="clicks" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_RightFront_CornerWeight" Value="4320" Unit="N" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_Front_NoseWeight" Value="51.8" Unit="%" DPS="1"/>
+   <Numeric Id="CarSetup_Chassis_RightRear_RideHeight" Value="163" Unit="mm" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_Front_CrossWeight" Value="54.5" Unit="%" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_RightFront_Caster" Value="8.1" Unit="deg" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_Front_SteeringRatio" Value="12" Unit="" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_LeftFront_LsCompression" Value="3" Unit="clicks" DPS="2"/>
+   <String Id="CarSetup_Chassis_Front_TapeConfiguration" Value="Race"/>
+   <Numeric Id="CarSetup_Chassis_LeftFront_CornerWeight" Value="3970" Unit="N" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_Front_SteeringOffset" Value="4" Unit="deg" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_Front_FrontBrakeBias" Value="62.5" Unit="%" DPS="1"/>
+   <Numeric Id="CarSetup_Chassis_LeftFront_HsCompSlope" Value="5" Unit="clicks" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_LeftFront_SpringRate" Value="1400" Unit="N/mm" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_LeftFront_SpringAngle" Value="75" Unit="deg" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_LeftFront_LsRebound" Value="8" Unit="clicks" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_LeftFront_HsReboundSlope" Value="7" Unit="clicks" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_FrontArb_Attach" Value="1" Unit="" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_RightFront_HsReboundSlope" Value="7" Unit="clicks" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_LeftFront_Caster" Value="4.4" Unit="deg" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_LeftFront_ToeIn" Value="0" Unit="mm" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_LeftRear_CornerWeight" Value="4410" Unit="N" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_LeftRear_RideHeight" Value="147" Unit="mm" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_RightFront_SpringRate" Value="1580" Unit="N/mm" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_RightFront_RideHeight" Value="134" Unit="mm" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_LeftRear_SpringRate" Value="88" Unit="N/mm" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_LeftRear_HsCompSlope" Value="6" Unit="clicks" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_FrontArb_ArmAsymmetry" Value="2" Unit="" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_LeftRear_LsRebound" Value="7" Unit="clicks" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_LeftRear_HsReboundSlope" Value="6" Unit="clicks" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_LeftRear_LeftRearToeIn" Value="4" Unit="mm" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_LeftRear_Camber" Value="1.6" Unit="deg" DPS="0"/>
+   <Numeric Id="CarSetup_Chassis_LeftRear_TrackBarHeight" Value="286" Unit="mm" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_FrontArb_LinkSlack" Value="7" Unit="mm" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_FrontArb_Preload" Value="0" Unit="Nm" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_RightFront_SpringPerchOffset" Value="-114" Unit="mm" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_RightFront_SpringAngle" Value="145" Unit="deg" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_RightRear_SpringRate" Value="210" Unit="N/mm" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_RightFront_LsRebound" Value="7" Unit="clicks" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_RightFront_ToeIn" Value="-1" Unit="mm" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_RightRear_CornerWeight" Value="3310" Unit="N" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_RightRear_SpringPerchOffset" Value="-156" Unit="mm" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_RightRear_LsCompression" Value="5" Unit="clicks" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_RightRear_HsCompSlope" Value="6" Unit="clicks" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_RightRear_LsRebound" Value="8" Unit="clicks" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_RightRear_HsReboundSlope" Value="5" Unit="clicks" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_RightRear_RightRearToeIn" Value="-4" Unit="mm" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_RightRear_Camber" Value="-1.6" Unit="deg" DPS="0"/>
+   <Numeric Id="CarSetup_Chassis_RightRear_TrackBarHeight" Value="254" Unit="mm" DPS="2"/>
+   <String Id="CarSetup_Chassis_RightRear_TruckArmMount" Value="bottom"/>
+   <Numeric Id="CarSetup_Chassis_RightRear_TruckArmPreload" Value="-7.3" Unit="Nm" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_Rear_RearEndRatio" Value="4.57" Unit="" DPS="2"/>
+   <String Id="CarSetup_Chassis_Rear_ArbDiameter" Value="None"/>
+   <Numeric Id="CarSetup_Chassis_Rear_Preload" Value="0" Unit="Nm" DPS="2"/>
+   <Numeric Id="CarSetup_Chassis_Rear_Attach" Value="0" Unit="" DPS="2"/>
+   <String Id="Total Laps" Value="4"/>
+   <String Id="Fastest Time" Value="0:15.069"/>
+   <String Id="Fastest Lap" Value="2"/>
+  </Details>
+ </Layers>
+</LDXFile>
