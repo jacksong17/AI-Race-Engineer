@@ -76,7 +76,7 @@ def _call_anthropic(prompt: str, raw_feedback: str) -> Dict:
         client = anthropic.Anthropic(api_key=api_key)
 
         message = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
+            model="claude-3-haiku-20240307",
             max_tokens=500,
             temperature=0.0,  # Deterministic for consistency
             messages=[

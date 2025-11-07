@@ -9,7 +9,7 @@ from typing import Dict, Optional
 
 def generate_llm_explanation(
     decision_context: Dict,
-    model: str = "claude-3-5-sonnet-20241022"
+    model: str = "claude-3-haiku-20240307"
 ) -> str:
     """
     Use LLM to generate natural language explanation of Agent 3's decision
@@ -103,7 +103,7 @@ def _template_explanation(decision_context: Dict) -> str:
 def generate_llm_multi_turn_analysis(
     session_history: list,
     current_recommendation: Dict,
-    model: str = "claude-3-5-sonnet-20241022"
+    model: str = "claude-3-haiku-20240307"
 ) -> str:
     """
     Advanced feature: Multi-turn LLM analysis that learns from previous sessions
