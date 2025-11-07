@@ -17,6 +17,8 @@ import numpy as np
 # State with decision tracking
 class RaceEngineerState(TypedDict):
     raw_setup_data: Optional[pd.DataFrame]
+    driver_feedback: Optional[Dict]
+    driver_diagnosis: Optional[Dict]  # Agent 1's interpretation
     data_quality_decision: Optional[str]
     analysis_strategy: Optional[str]
     selected_features: Optional[List[str]]
@@ -24,16 +26,75 @@ class RaceEngineerState(TypedDict):
     recommendation: Optional[str]
     error: Optional[str]
 
-# ========== AGENT 1: TELEMETRY CHIEF (Data Quality + Parsing) ==========
+# ========== AGENT 1: TELEMETRY CHIEF (Data Quality + Driver Feedback) ==========
 def telemetry_agent(state: RaceEngineerState):
     """
-    Agent 1: Data Quality Assessor + Parser
+    Agent 1: Data Quality Assessor + Driver Feedback Interpreter
     DECISIONS:
+    - What is driver feeling? (interpret feedback)
+    - Which setup areas relate to driver complaint?
     - Remove outliers or keep them?
     - Sufficient data for analysis?
-    - Which sessions are valid?
     """
-    print("\n[AGENT 1] Telemetry Chief: Assessing data quality...")
+    print("\n[AGENT 1] Telemetry Chief: Interpreting driver feedback...")
+
+    # DECISION 0: Interpret driver feedback (Perception → Reasoning)
+    driver_feedback = state.get('driver_feedback', {})
+    driver_diagnosis = {}
+
+    if driver_feedback:
+        complaint = driver_feedback.get('complaint', '')
+        phase = driver_feedback.get('phase', '')
+
+        print(f"   🎧 Driver complaint: '{complaint}' during {phase}")
+
+        # Agent reasons about what setup parameters affect this handling characteristic
+        if 'loose' in complaint or 'oversteer' in complaint:
+            priority_features = ['tire_psi_rr', 'tire_psi_lr', 'track_bar_height_left', 'spring_rf', 'spring_rr']
+            diagnosis = "Oversteer (loose rear end)"
+            technical_cause = "Insufficient rear grip - likely rear tire pressure or rear spring rates"
+            print(f"   💡 DIAGNOSIS: {diagnosis}")
+            print(f"      Technical assessment: {technical_cause}")
+            print(f"   ✓ DECISION: Prioritize REAR GRIP parameters")
+            print(f"      Priority features: {', '.join(priority_features[:3])}")
+        elif 'tight' in complaint or 'understeer' in complaint or 'push' in complaint:
+            priority_features = ['tire_psi_lf', 'tire_psi_rf', 'cross_weight', 'spring_lf', 'spring_rf']
+            diagnosis = "Understeer (tight front end)"
+            technical_cause = "Insufficient front grip - likely front tire pressure or weight distribution"
+            print(f"   💡 DIAGNOSIS: {diagnosis}")
+            print(f"      Technical assessment: {technical_cause}")
+            print(f"   ✓ DECISION: Prioritize FRONT GRIP parameters")
+            print(f"      Priority features: {', '.join(priority_features[:3])}")
+        elif 'bottoming' in complaint or 'hitting' in complaint:
+            priority_features = ['spring_lf', 'spring_rf', 'spring_lr', 'spring_rr']
+            diagnosis = "Suspension bottoming out"
+            technical_cause = "Insufficient spring stiffness or ride height"
+            print(f"   💡 DIAGNOSIS: {diagnosis}")
+            print(f"      Technical assessment: {technical_cause}")
+            print(f"   ✓ DECISION: Prioritize SPRING RATES")
+        else:
+            priority_features = []
+            diagnosis = "General optimization needed"
+            technical_cause = "Analyze all parameters for correlation"
+            print(f"   💡 DIAGNOSIS: {diagnosis}")
+            print(f"   ✓ DECISION: Broad analysis of all parameters")
+
+        driver_diagnosis = {
+            'diagnosis': diagnosis,
+            'technical_cause': technical_cause,
+            'priority_features': priority_features,
+            'complaint_type': complaint
+        }
+    else:
+        print("   ℹ️  No driver feedback provided - proceeding with general analysis")
+        driver_diagnosis = {
+            'diagnosis': 'General optimization',
+            'priority_features': [],
+            'complaint_type': None
+        }
+
+    print()
+    print("   📊 Assessing data quality...")
 
     df = state.get('raw_setup_data')
     if df is None or df.empty:
@@ -75,6 +136,7 @@ def telemetry_agent(state: RaceEngineerState):
 
     return {
         "raw_setup_data": df_clean,
+        "driver_diagnosis": driver_diagnosis,
         "data_quality_decision": decision
     }
 
@@ -93,13 +155,24 @@ def analysis_agent(state: RaceEngineerState):
     if df is None or df.empty:
         return {"error": "No data to analyze"}
 
-    # DECISION 1: Feature selection (dynamic based on variance)
+    # Read driver diagnosis from Agent 1
+    driver_diagnosis = state.get('driver_diagnosis', {})
+    priority_features = driver_diagnosis.get('priority_features', [])
+
+    # DECISION 1: Feature selection (dynamic based on variance + driver feedback)
     potential_features = [
         'tire_psi_lf', 'tire_psi_rf', 'tire_psi_lr', 'tire_psi_rr',
         'cross_weight', 'track_bar_height_left', 'spring_lf', 'spring_rf'
     ]
 
+    if priority_features:
+        print(f"   🎯 Agent 1 identified priority areas: {driver_diagnosis.get('diagnosis')}")
+        print(f"      Focusing analysis on: {', '.join(priority_features[:3])}")
+        print(f"   ✓ DECISION: Prioritize driver-feedback-relevant parameters")
+        print()
+
     selected_features = []
+    priority_selected = []
     print(f"   🔍 Evaluating {len(potential_features)} potential features...")
 
     for feature in potential_features:
@@ -107,17 +180,28 @@ def analysis_agent(state: RaceEngineerState):
             continue
 
         variance = df[feature].std()
+        is_priority = feature in priority_features
+
         # Agent decides: only use features that actually varied during testing
         if variance > 0.01:  # Feature was changed meaningfully
             selected_features.append(feature)
-            print(f"      ✓ {feature:25s} (varied: σ={variance:.2f})")
+            if is_priority:
+                priority_selected.append(feature)
+                print(f"      ✓ {feature:25s} (varied: σ={variance:.2f}) [PRIORITY]")
+            else:
+                print(f"      ✓ {feature:25s} (varied: σ={variance:.2f})")
         else:
-            print(f"      ✗ {feature:25s} (constant: σ={variance:.4f})")
+            marker = "[PRIORITY - no variance]" if is_priority else ""
+            print(f"      ✗ {feature:25s} (constant: σ={variance:.4f}) {marker}")
 
     if len(selected_features) < 2:
         return {"error": f"Insufficient variable features: only {len(selected_features)} found"}
 
-    print(f"   ✓ DECISION: Using {len(selected_features)} features for analysis")
+    if priority_selected:
+        print(f"   ✓ DECISION: Using {len(selected_features)} features ({len(priority_selected)} priority features identified)")
+        print(f"      Priority features with variance: {', '.join(priority_selected)}")
+    else:
+        print(f"   ✓ DECISION: Using {len(selected_features)} features for analysis")
 
     # DECISION 2: Choose analysis strategy
     sample_size = len(df)
@@ -162,7 +246,8 @@ def analysis_agent(state: RaceEngineerState):
             print(f"   Results (Top 5 correlations):")
             for feat, corr in sorted_impacts[:5]:
                 direction = "faster" if corr < 0 else "slower"
-                print(f"      • {feat:25s}: {corr:+.3f} ({direction} with increase)")
+                priority_marker = " [PRIORITY - matches driver feedback]" if feat in priority_features else ""
+                print(f"      • {feat:25s}: {corr:+.3f} ({direction} with increase){priority_marker}")
 
             analysis_results = {
                 'method': 'correlation',
@@ -223,6 +308,8 @@ def engineer_agent(state: RaceEngineerState):
 
     analysis = state.get('analysis')
     strategy = state.get('analysis_strategy', 'unknown')
+    driver_diagnosis = state.get('driver_diagnosis', {})
+    priority_features = driver_diagnosis.get('priority_features', [])
 
     if not analysis:
         return {"error": "No analysis results"}
@@ -233,6 +320,17 @@ def engineer_agent(state: RaceEngineerState):
     print(f"   📊 Analysis method used: {method.upper()}")
     print(f"   🎯 Top parameter: {param}")
     print(f"   📈 Impact magnitude: {abs(impact):.3f}")
+
+    # DECISION 0: Validate against driver feedback
+    if driver_diagnosis and priority_features:
+        if param in priority_features:
+            print(f"   ✅ VALIDATION: Top parameter matches driver feedback!")
+            print(f"      Driver complaint: {driver_diagnosis.get('diagnosis')}")
+            print(f"      Data confirms: {param} is primary factor")
+        else:
+            print(f"   ⚠️  INSIGHT: Data suggests different root cause than driver feedback")
+            print(f"      Driver complaint: {driver_diagnosis.get('diagnosis')}")
+            print(f"      Data indicates: {param} (not in priority list)")
 
     # DECISION 1: Determine signal strength
     if abs(impact) > 0.1:
@@ -247,18 +345,24 @@ def engineer_agent(state: RaceEngineerState):
 
     # DECISION 2: Generate appropriate recommendation
     if signal_strength == "STRONG":
+        # Add driver feedback context if available
+        driver_context = ""
+        if driver_diagnosis and param in priority_features:
+            diagnosis = driver_diagnosis.get('diagnosis', '')
+            driver_context = f"\n   🎧 Addresses driver complaint: {diagnosis}"
+
         if method == "correlation":
             if impact < -0.1:
                 rec = f"STRONG RECOMMENDATION: Increase {param} (strong negative correlation: {impact:.3f})\n" + \
-                      f"   Expected effect: Significantly faster lap times"
+                      f"   Expected effect: Significantly faster lap times{driver_context}"
             else:
                 rec = f"STRONG RECOMMENDATION: Reduce {param} (strong positive correlation: {impact:.3f})\n" + \
-                      f"   Expected effect: Significantly faster lap times"
+                      f"   Expected effect: Significantly faster lap times{driver_context}"
         else:  # regression
             direction = "REDUCE" if impact > 0 else "INCREASE"
             rec = f"PRIMARY FOCUS: {direction} {param}\n" + \
                   f"   Predicted impact: {abs(impact):.3f}s per standardized unit\n" + \
-                  f"   Confidence: High (regression coefficient)"
+                  f"   Confidence: High (regression coefficient){driver_context}"
 
         print(f"   ✓ DECISION: Single-parameter recommendation")
 

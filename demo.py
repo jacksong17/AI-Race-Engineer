@@ -96,7 +96,24 @@ else:
     print(f"   Lap time range: {df['fastest_time'].min():.3f}s - {df['fastest_time'].max():.3f}s")
     print()
 
-# Step 2: Run full AI Race Engineer workflow (all 3 agents)
+# Step 1.5: Gather driver feedback
+print("[1.5/5] Driver Feedback Session...")
+print()
+print("🏁 DRIVER DEBRIEF:")
+print("   Driver: 'The car feels a bit loose coming off the corners.'")
+print("   Driver: 'I'm fighting oversteer in turns 1 and 2, especially on exit.'")
+print("   Driver: 'Rear end wants to come around when I get on the throttle.'")
+print()
+
+# Driver feedback for AI processing
+driver_feedback = {
+    'complaint': 'loose_oversteer',
+    'description': 'Car feels loose off corners, fighting oversteer in turns 1-2, rear end unstable on throttle',
+    'severity': 'moderate',
+    'phase': 'corner_exit'
+}
+
+# Step 2: Run full AI Race Engineer workflow (all agents)
 print("[2/5] Running AI Race Engineer Workflow...")
 print()
 
@@ -104,6 +121,7 @@ from race_engineer import app
 
 initial_state = {
     'raw_setup_data': df,
+    'driver_feedback': driver_feedback,
     'data_quality_decision': None,
     'analysis_strategy': None,
     'selected_features': None,
@@ -122,7 +140,7 @@ if 'error' in state and state['error']:
 print()
 
 # Step 3: Save results
-print("[3/5] Saving results...")
+print("[3/6] Saving results...")
 
 results = {
     'data_source': 'real_csv_data' if using_real_data else 'mock_data',
@@ -142,7 +160,7 @@ print(f"   Results saved to: {output_path}")
 print()
 
 # Step 4: Display summary
-print("[4/5] Results Summary")
+print("[4/6] Results Summary")
 print("="*70)
 print()
 print("CREW CHIEF RECOMMENDATION:")
@@ -168,7 +186,7 @@ print()
 
 # Step 5: Demo complete
 print("="*70)
-print("  [5/5] DEMO COMPLETE!")
+print("  [5/6] DEMO COMPLETE!")
 print("="*70)
 print()
 print("Next steps:")
