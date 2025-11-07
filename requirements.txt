@@ -7,3 +7,8 @@ langgraph
 langchain-core
 pyirsdk
 lxml
+
+# LLM providers (optional - for driver feedback interpretation)
+# Install at least one if you want LLM-powered feedback interpretation:
+# anthropic>=0.39.0  # Uncomment for Claude API
+# openai>=1.0.0    # Uncomment for OpenAI API

@@ -182,9 +182,9 @@ def create_demo_visualizations():
     
     # Create text summary of agent findings
     findings = """
-    🤖 AI AGENT INSIGHTS
+    [AI] AI AGENT INSIGHTS
     
-    📊 TELEMETRY CHIEF:
+    [DATA] TELEMETRY CHIEF:
     • Processed 30 runs, 300 total laps
     • Data quality: 98% valid samples
     
@@ -193,13 +193,13 @@ def create_demo_visualizations():
     • Cross weight × Track bar interaction detected
     • Confidence interval: 87% for predictions
     
-    🔧 CREW CHIEF RECOMMENDATIONS:
-    ✅ Reduce LF pressure by 2 PSI
-    ✅ Increase cross weight to 54.5%
-    ✅ Raise track bar by 10mm
-    ⚠️ Monitor RF temps (approaching limit)
+    [TOOL] CREW CHIEF RECOMMENDATIONS:
+    [OK] Reduce LF pressure by 2 PSI
+    [OK] Increase cross weight to 54.5%
+    [OK] Raise track bar by 10mm
+    [WARNING] Monitor RF temps (approaching limit)
     
-    💡 EXPECTED OUTCOME:
+     EXPECTED OUTCOME:
     • Lap time improvement: 0.31 seconds
     • Consistency improvement: 15%
     • Tire wear reduction: 8%
@@ -215,7 +215,7 @@ def create_demo_visualizations():
     # Save the figure
     output_path = Path("bristol_analysis_dashboard.png")
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
-    print(f"✅ Dashboard saved to: {output_path}")
+    print(f"[OK] Dashboard saved to: {output_path}")
     
     # Also save individual plots for slides
     fig2, axes = plt.subplots(1, 3, figsize=(15, 5))
@@ -252,7 +252,7 @@ def create_demo_visualizations():
     
     plt.tight_layout()
     plt.savefig("bristol_key_insights.png", dpi=150, bbox_inches='tight')
-    print(f"✅ Key insights saved to: bristol_key_insights.png")
+    print(f"[OK] Key insights saved to: bristol_key_insights.png")
     
     return fig
 

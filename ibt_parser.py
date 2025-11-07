@@ -42,7 +42,7 @@ class IBTParser:
         self.has_ibt_library = PYIRSDK_INSTALLED
         if not self.has_ibt_library:
             print("="*60)
-            print("⚠️ WARNING: 'pyirsdk' library not found. Using MOCK data for demo.")
+            print("[WARNING] WARNING: 'pyirsdk' library not found. Using MOCK data for demo.")
             print("   To parse real .ibt files, run: pip install pyirsdk")
             print("="*60)
     
@@ -82,7 +82,7 @@ class IBTParser:
             return df
             
         except Exception as e:
-            print(f"❌ ERROR: Failed to parse .ibt file: {e}")
+            print(f"[ERROR] ERROR: Failed to parse .ibt file: {e}")
             print("   > Falling back to mock telemetry.")
             return self._generate_mock_telemetry(filepath)
     
