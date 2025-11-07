@@ -1,5 +1,5 @@
 {
-  "user_input": "The car feels really loose coming off corners in turns 1 and 2. The rear end wants to come around when I get on the throttle.",
+  "user_input": "Loose rear end on throttle",
   "analysis_type": "setup_optimization",
   "focus_areas": [
     "rear_grip",

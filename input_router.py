@@ -108,14 +108,23 @@ class InputRouter:
     def _extract_driver_feedback(self, raw_input: str, input_lower: str) -> Optional[DriverFeedback]:
         """Extract driver feedback if present in input"""
 
-        # Look for driver feedback indicators
+        # Look for driver feedback indicators OR complaint keywords
         feedback_indicators = [
             r'car.*feel', r'driver.*say', r'feedback', r'complain',
             r'handling', r'issue', r'problem'
         ]
 
+        # Check if any complaint patterns match directly (even without explicit indicators)
+        has_complaint = False
+        for patterns in self.COMPLAINT_PATTERNS.values():
+            if any(re.search(pattern, input_lower) for pattern in patterns):
+                has_complaint = True
+                break
+
         has_feedback = any(re.search(pattern, input_lower) for pattern in feedback_indicators)
-        if not has_feedback:
+
+        # Must have either feedback indicators OR direct complaints
+        if not has_feedback and not has_complaint:
             return None
 
         # Identify complaint type
