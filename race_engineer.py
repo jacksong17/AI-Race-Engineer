@@ -318,19 +318,54 @@ def engineer_agent(state: RaceEngineerState):
     method = analysis.get('method', 'unknown')
 
     print(f"   [ANALYSIS] Analysis method used: {method.upper()}")
-    print(f"   [TARGET] Top parameter: {param}")
+    print(f"   [TARGET] Top parameter from data: {param}")
     print(f"   [STATS] Impact magnitude: {abs(impact):.3f}")
 
-    # DECISION 0: Validate against driver feedback
+    # DECISION 0: Should we trust data or driver feedback?
+    all_impacts = analysis.get('all_impacts', {})
+    recommended_param = param
+    recommended_impact = impact
+    decision_rationale = ""
+
     if driver_diagnosis and priority_features:
         if param in priority_features:
             print(f"   [VALIDATED] VALIDATION: Top parameter matches driver feedback!")
             print(f"      Driver complaint: {driver_diagnosis.get('diagnosis')}")
             print(f"      Data confirms: {param} is primary factor")
+            print(f"    DECISION: Trust the data - driver intuition validated")
+            decision_rationale = "driver_validated_by_data"
         else:
-            print(f"   [WARNING]  INSIGHT: Data suggests different root cause than driver feedback")
+            # Data contradicts driver - need to make a decision
+            print(f"   [WARNING]  CONFLICT: Data contradicts driver feedback")
             print(f"      Driver complaint: {driver_diagnosis.get('diagnosis')}")
-            print(f"      Data indicates: {param} (not in priority list)")
+            print(f"      Data top parameter: {param} (not in driver's priority list)")
+
+            # Find strongest parameter from driver's priority list
+            priority_impacts = {p: all_impacts.get(p, 0) for p in priority_features if p in all_impacts}
+
+            if priority_impacts:
+                best_priority_param = max(priority_impacts.items(), key=lambda x: abs(x[1]))
+                best_priority_name, best_priority_impact = best_priority_param
+
+                print(f"      Strongest priority parameter: {best_priority_name} ({best_priority_impact:+.3f})")
+                print(f"\n    DECISION: Prioritize driver feedback")
+                print(f"      Rationale: Driver has physical feel data we don't capture in telemetry.")
+                print(f"      Action: Recommend {best_priority_name} (aligns with driver complaint)")
+                print(f"      Note: Data suggests {param} but will test driver-relevant parameter first")
+
+                recommended_param = best_priority_name
+                recommended_impact = best_priority_impact
+                decision_rationale = "driver_feedback_prioritized"
+            else:
+                print(f"\n    DECISION: Trust the data (no strong correlations in driver's priority areas)")
+                decision_rationale = "data_prioritized_no_alternatives"
+    else:
+        print(f"    [INFO] No driver feedback - using pure data-driven recommendation")
+        decision_rationale = "data_only"
+
+    # Update the parameter we'll actually recommend
+    param = recommended_param
+    impact = recommended_impact
 
     # DECISION 1: Determine signal strength
     if abs(impact) > 0.1:
@@ -345,26 +380,28 @@ def engineer_agent(state: RaceEngineerState):
 
     # DECISION 2: Generate appropriate recommendation
     if signal_strength == "STRONG":
-        # Add driver feedback context if available
-        driver_context = ""
-        if driver_diagnosis and param in priority_features:
-            diagnosis = driver_diagnosis.get('diagnosis', '')
-            driver_context = f"\n    Addresses driver complaint: {diagnosis}"
+        # Add context based on how we made the decision
+        context_note = ""
+        if decision_rationale == "driver_validated_by_data":
+            context_note = f"\n    Addresses driver complaint: {driver_diagnosis.get('diagnosis', '')}"
+        elif decision_rationale == "driver_feedback_prioritized":
+            context_note = f"\n    Prioritizes driver complaint: {driver_diagnosis.get('diagnosis', '')}"
+            context_note += f"\n    Note: Data suggested different parameter, but trusting driver expertise"
 
         if method == "correlation":
             if impact < -0.1:
-                rec = f"STRONG RECOMMENDATION: Increase {param} (strong negative correlation: {impact:.3f})\n" + \
-                      f"   Expected effect: Significantly faster lap times{driver_context}"
+                rec = f"STRONG RECOMMENDATION: Increase {param} (correlation: {impact:.3f})\n" + \
+                      f"   Expected effect: Significantly faster lap times{context_note}"
             else:
-                rec = f"STRONG RECOMMENDATION: Reduce {param} (strong positive correlation: {impact:.3f})\n" + \
-                      f"   Expected effect: Significantly faster lap times{driver_context}"
+                rec = f"STRONG RECOMMENDATION: Reduce {param} (correlation: {impact:.3f})\n" + \
+                      f"   Expected effect: Significantly faster lap times{context_note}"
         else:  # regression
             direction = "REDUCE" if impact > 0 else "INCREASE"
             rec = f"PRIMARY FOCUS: {direction} {param}\n" + \
                   f"   Predicted impact: {abs(impact):.3f}s per standardized unit\n" + \
-                  f"   Confidence: High (regression coefficient){driver_context}"
+                  f"   Confidence: High (regression coefficient){context_note}"
 
-        print(f"    DECISION: Single-parameter recommendation")
+        print(f"    DECISION: Single-parameter recommendation ({param})")
 
     elif signal_strength == "MODERATE":
         direction = "increase" if (impact < 0 or method == "regression" and impact < 0) else "reduce"
