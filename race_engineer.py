@@ -187,12 +187,12 @@ def analysis_agent(state: RaceEngineerState):
             selected_features.append(feature)
             if is_priority:
                 priority_selected.append(feature)
-                print(f"       {feature:25s} (varied: σ={variance:.2f}) [PRIORITY]")
+                print(f"       {feature:25s} (varied: stdev={variance:.2f}) [PRIORITY]")
             else:
-                print(f"       {feature:25s} (varied: σ={variance:.2f})")
+                print(f"       {feature:25s} (varied: stdev={variance:.2f})")
         else:
             marker = "[PRIORITY - no variance]" if is_priority else ""
-            print(f"      [X] {feature:25s} (constant: σ={variance:.4f}) {marker}")
+            print(f"      [X] {feature:25s} (constant: stdev={variance:.4f}) {marker}")
 
     if len(selected_features) < 2:
         return {"error": f"Insufficient variable features: only {len(selected_features)} found"}
