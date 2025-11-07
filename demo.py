@@ -96,43 +96,33 @@ else:
     print(f"   Lap time range: {df['fastest_time'].min():.3f}s - {df['fastest_time'].max():.3f}s")
     print()
 
-# Step 2: Run analysis agent
-print("[2/5] Running Data Scientist Agent...")
+# Step 2: Run full AI Race Engineer workflow (all 3 agents)
+print("[2/5] Running AI Race Engineer Workflow...")
 print()
 
-from race_engineer import analysis_agent, engineer_agent
+from race_engineer import app
 
-state = {
+initial_state = {
     'raw_setup_data': df,
+    'data_quality_decision': None,
+    'analysis_strategy': None,
+    'selected_features': None,
     'analysis': None,
     'recommendation': None,
     'error': None
 }
 
-analysis_result = analysis_agent(state)
+# Run the full LangGraph workflow (Telemetry Chief → Data Scientist → Crew Chief)
+state = app.invoke(initial_state)
 
-if 'error' in analysis_result and analysis_result['error']:
-    print(f"   [ERROR] {analysis_result['error']}")
+if 'error' in state and state['error']:
+    print(f"   [ERROR] {state['error']}")
     sys.exit(1)
 
-state.update(analysis_result)
 print()
 
-# Step 3: Run engineer agent
-print("[3/5] Running Crew Chief Agent...")
-print()
-
-engineer_result = engineer_agent(state)
-
-if 'error' in engineer_result and engineer_result['error']:
-    print(f"   [ERROR] {engineer_result['error']}")
-    sys.exit(1)
-
-state.update(engineer_result)
-print()
-
-# Step 4: Save results
-print("[4/5] Saving results...")
+# Step 3: Save results
+print("[3/5] Saving results...")
 
 results = {
     'data_source': 'real_csv_data' if using_real_data else 'mock_data',
@@ -151,8 +141,8 @@ with open(output_path, 'w') as f:
 print(f"   Results saved to: {output_path}")
 print()
 
-# Step 5: Display summary
-print("[5/5] Results Summary")
+# Step 4: Display summary
+print("[4/5] Results Summary")
 print("="*70)
 print()
 print("CREW CHIEF RECOMMENDATION:")
@@ -176,8 +166,9 @@ print(f"   Best AI time:   {df['fastest_time'].min():.3f}s")
 print(f"   Improvement:    {15.543 - df['fastest_time'].min():.3f}s")
 print()
 
+# Step 5: Demo complete
 print("="*70)
-print("  DEMO COMPLETE!")
+print("  [5/5] DEMO COMPLETE!")
 print("="*70)
 print()
 print("Next steps:")
