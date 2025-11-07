@@ -1,0 +1,91 @@
+{
+  "session_id": "session_2025-11-07_20-31-04",
+  "timestamp": "2025-11-07T20:31:04.752154",
+  "driver_feedback": {
+    "issues": [
+      {
+        "complaint": "loose_entry",
+        "severity": "moderate",
+        "phase": "corner_entry",
+        "diagnosis": "Oversteer on turn-in",
+        "priority_features": [
+          "tire_psi_rr",
+          "cross_weight"
+        ],
+        "confidence": 0.8
+      },
+      {
+        "complaint": "tight_entry",
+        "severity": "moderate",
+        "phase": "corner_entry",
+        "diagnosis": "Insufficient front grip causing understeer at turn-in",
+        "priority_features": [
+          "tire_psi_lf",
+          "tire_psi_rf",
+          "cross_weight"
+        ],
+        "confidence": 0.85
+      },
+      {
+        "complaint": "chattering",
+        "severity": "moderate",
+        "phase": "mid_corner",
+        "diagnosis": "Tire chattering - possible over-stiff springs or excessive load",
+        "priority_features": [
+          "spring_lf",
+          "spring_rf",
+          "tire_psi_lf"
+        ],
+        "confidence": 0.75
+      }
+    ],
+    "handling_balance_type": "mixed",
+    "primary_issue_index": 1,
+    "primary_issue": {
+      "complaint": "tight_entry",
+      "severity": "moderate",
+      "phase": "corner_entry",
+      "diagnosis": "Insufficient front grip causing understeer at turn-in",
+      "priority_features": [
+        "tire_psi_lf",
+        "tire_psi_rf",
+        "cross_weight"
+      ],
+      "confidence": 0.85
+    }
+  },
+  "driver_diagnosis": {},
+  "data_quality_decision": "",
+  "analysis_strategy": "",
+  "selected_features": [],
+  "analysis": {
+    "most_impactful": [
+      "tire_psi_rf",
+      0.009949373350593269
+    ],
+    "all_impacts": {
+      "tire_psi_lf": -0.008031068487174846,
+      "spring_rf": 0.0006225651451128708,
+      "spring_lf": 0.00011729600781148395,
+      "tire_psi_rf": 0.009949373350593269
+    }
+  },
+  "recommendation": "REDUCE tire_psi_rf (predicted impact: 0.010s)",
+  "outcome_feedback": {
+    "outcome": "inconclusive",
+    "lap_time_delta": 0.033674225372962496,
+    "statistical_confidence": 0.5014055773563798,
+    "sample_size": 5,
+    "recommended_action": "retest",
+    "learning_note": "Possible improvement (+0.034s) but 50% confidence < 80% threshold. Run more laps to confirm.",
+    "parameter_tested": "tire_psi_rf",
+    "best_test_lap": 15.213312046893343,
+    "mean_test_lap": 15.261092110796977,
+    "test_consistency": 0.03795544142187367
+  },
+  "data_summary": {
+    "num_sessions_analyzed": 25,
+    "best_lap_time": 15.246986272266305,
+    "improvement_range": 0.5581228303451358
+  }
+}

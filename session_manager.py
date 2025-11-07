@@ -148,6 +148,7 @@ class SessionManager:
             "parameter_tests": {},
             "parameter_impacts": {},
             "recommendations": [],
+            "parameter_effectiveness": {}  # NEW: Track actual outcomes
         }
 
         # Update session count
@@ -181,12 +182,17 @@ class SessionManager:
                                 metrics["parameter_impacts"][param] = []
                             metrics["parameter_impacts"][param].append(float(impact_value))
 
+                # NEW: Track parameter effectiveness from outcome feedback
+                outcome_feedback = session_data.get("outcome_feedback")
+                if outcome_feedback:
+                    self._update_parameter_effectiveness(metrics, param, outcome_feedback)
+
                 # Store recommendation
                 metrics["recommendations"].append({
                     "timestamp": timestamp,
                     "parameter": param,
                     "recommendation": recommendation,
-                    "outcome": session_data.get("outcome_feedback")
+                    "outcome": outcome_feedback
                 })
 
         # Calculate convergence metric (simplified: based on consistency of recommendations)
@@ -199,6 +205,59 @@ class SessionManager:
         # Save updated metrics
         with open(self.metrics_file, 'w') as f:
             json.dump(metrics, f, indent=2)
+
+    def _update_parameter_effectiveness(self, metrics: Dict, param: str, outcome: Dict):
+        """
+        Update parameter effectiveness tracking based on outcome validation.
+
+        Args:
+            metrics: Current metrics dictionary
+            param: Parameter that was tested
+            outcome: Outcome validation result
+        """
+        if "parameter_effectiveness" not in metrics:
+            metrics["parameter_effectiveness"] = {}
+
+        if param not in metrics["parameter_effectiveness"]:
+            metrics["parameter_effectiveness"][param] = {
+                "tests": 0,
+                "successes": 0,
+                "failures": 0,
+                "inconclusives": 0,
+                "avg_improvement": 0.0,
+                "best_improvement": 0.0,
+                "improvements": [],
+                "success_rate": 0.0
+            }
+
+        stats = metrics["parameter_effectiveness"][param]
+        stats["tests"] += 1
+
+        outcome_type = outcome.get("outcome", "inconclusive")
+        lap_time_delta = outcome.get("lap_time_delta", 0.0)
+
+        if outcome_type == "improved":
+            stats["successes"] += 1
+            stats["improvements"].append(lap_time_delta)
+
+            # Update average improvement
+            stats["avg_improvement"] = sum(stats["improvements"]) / len(stats["improvements"])
+
+            # Update best improvement
+            stats["best_improvement"] = max(stats["improvements"])
+
+        elif outcome_type == "worse":
+            stats["failures"] += 1
+
+        else:  # no_change, inconclusive, insufficient_data
+            stats["inconclusives"] += 1
+
+        # Calculate success rate
+        total_conclusive = stats["successes"] + stats["failures"]
+        if total_conclusive > 0:
+            stats["success_rate"] = stats["successes"] / total_conclusive
+        else:
+            stats["success_rate"] = 0.0
 
     def _extract_parameter_from_recommendation(self, recommendation: str) -> Optional[str]:
         """
