@@ -504,18 +504,70 @@ print(result['recommendation'])
 - At Bristol, 0.7s = difference between P1 and P15
 - **That's the difference between winning and not qualifying**
 
-### Beyond Racing
+### Beyond Racing: Multi-Agent Systems in the Real World
 
-**Same architecture works for:**
-- Manufacturing: Quality control with sensor data
-- Healthcare: Patient monitoring with vital signs
-- Finance: Risk analysis with market data
-- Energy: Grid optimization with usage patterns
+**What Makes This a Multi-Agent System?**
 
-**Common pattern:**
-1. Specialized data ingestion (Telemetry Chief)
-2. Statistical/ML analysis (Data Scientist)
-3. Domain-specific recommendations (Crew Chief)
+Our AI Race Engineer demonstrates the core principles of multi-agent systems:
+- **Multiple specialized agents** working toward a shared goal
+- **Coordination through shared state** (not just sequential processing)
+- **Divided responsibilities** based on expertise
+- **Real-time information sharing** between agents
+- **Collaborative problem-solving** (faster than any single agent)
+
+**Racing → Supply Chain Management Parallel:**
+
+| Racing (Our Demo) | Supply Chain | Core Principle |
+|-------------------|--------------|----------------|
+| Telemetry Chief validates data | Inventory Agent monitors stock levels | **Data Quality & Monitoring** |
+| Data Scientist analyzes correlations | Logistics Agent optimizes routes | **Analysis & Optimization** |
+| Crew Chief recommends setup changes | Warehouse Agent coordinates delivery | **Action & Coordination** |
+| Driver provides feedback | Customer demand signals | **Human-in-the-Loop Input** |
+
+**Real-World Multi-Agent Applications:**
+
+1. **Supply Chain Management**
+   - Inventory agents manage stock across warehouses
+   - Logistics agents optimize delivery routes
+   - Demand forecasting agents predict needs
+   - Coordination agents handle exceptions
+   - *Same pattern: Perception → Planning → Action*
+
+2. **Healthcare Operations**
+   - Patient monitoring agents track vital signs
+   - Diagnostic agents analyze symptoms
+   - Treatment agents recommend interventions
+   - Resource agents manage bed/equipment availability
+   - *Key: Agents validate hypotheses like our driver feedback*
+
+3. **Financial Trading**
+   - Market data agents ingest feeds
+   - Risk analysis agents evaluate positions
+   - Strategy agents execute trades
+   - Compliance agents ensure regulations
+   - *Key: Deterministic decisions critical (like racing safety)*
+
+4. **Smart Grid Energy**
+   - Sensor agents monitor usage patterns
+   - Prediction agents forecast demand
+   - Optimization agents balance load
+   - Response agents handle outages
+   - *Key: Real-time coordination under constraints*
+
+**The Power of Multi-Agent Coordination:**
+
+Our racing demo shows this in action:
+- **Division of Work:** Each agent has specialized expertise
+- **Information Sharing:** Agent 1's diagnosis guides Agent 2's analysis
+- **Speed:** 17 sessions analyzed in 5 seconds (vs. hours manually)
+- **Validation:** Agent 3 confirms Agent 1's hypothesis with data
+- **Adaptability:** Same agents, different priorities based on driver feedback
+
+**Why LangGraph Excels for Multi-Agent Systems:**
+- Explicit state management → clear information sharing
+- Conditional routing → intelligent coordination
+- Deterministic execution → production-ready reliability
+- Error handling → graceful degradation when agents fail
 
 ---
 
@@ -531,6 +583,12 @@ print(result['recommendation'])
 **Point 2:** "Now the Data Scientist agent is running linear regression on 17 real testing sessions. It's identifying which setup parameters correlate with faster lap times."
 
 **Point 3:** "Finally, the Crew Chief agent translates those statistical results into a recommendation a driver can actually use: 'Reduce right rear tire pressure.'"
+
+**Point 4:** "Notice how the driver's feedback - 'car feels loose off corners' - guided the entire analysis. Agent 1 interpreted that as a rear grip issue, Agent 2 focused on rear parameters, and Agent 3 validated that the data confirmed the driver's instinct. This is multi-agent coordination in action."
+
+### Multi-Agent Systems Connection (30 seconds)
+
+"This same architecture applies to supply chain management, healthcare operations, or financial trading. In supply chain, you might have inventory agents monitoring stock, logistics agents optimizing routes, and coordination agents handling exceptions - all sharing information and working toward a common goal, just like our racing agents. The key is that agents divide work by specialty, communicate through shared state, and coordinate their decisions."
 
 ### Why LangGraph (1 minute)
 
@@ -558,6 +616,9 @@ CrewAI would let agents debate and potentially disagree. AutoGen would work but 
 
 **Q: "Why not just use a simple script instead of agents?"**
 A: "Good question. A script would work for one data source and one analysis type. But agents give us flexibility: the Telemetry Chief can adapt to .ldx, .csv, or .ibt files. The Data Scientist can choose regression, neural nets, or decision trees based on data size. That adaptability is what makes it agentic, not just a pipeline."
+
+**Q: "How is this different from a traditional multi-agent system?"**
+A: "Traditional multi-agent systems often involve agents communicating via message passing or blackboards. LangGraph uses explicit state management with TypedDict, which gives us type safety and clear data contracts. Each agent receives the full state, makes decisions, and returns updates. This is actually MORE transparent than message passing because you can trace exactly what data each agent saw and why it made its decision. Plus, we get the benefit of driver feedback influencing the entire workflow - Agent 1 interprets it, Agent 2 uses that interpretation, and Agent 3 validates the results. That's coordinated problem-solving."
 
 **Q: "Could you use LLMs for the agents instead of Python functions?"**
 A: "Absolutely! I could replace the Data Scientist with an LLM that analyzes the data and explains correlations in natural language. But for safety-critical racing decisions, I wanted deterministic mathematical analysis, not probabilistic language models. LangGraph supports both approaches."
