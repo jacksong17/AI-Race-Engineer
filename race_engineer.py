@@ -39,7 +39,7 @@ class RaceEngineerState(TypedDict):
 def _print_state_transition(from_agent: str, to_agent: str, state: RaceEngineerState):
     """Display state being passed between agents for demo visibility"""
     print(f"\n{'='*70}")
-    print(f"  STATE HANDOFF: {from_agent} → {to_agent}")
+    print(f"  STATE HANDOFF: {from_agent} -> {to_agent}")
     print(f"{'='*70}")
 
     # Show relevant state fields (exclude raw data)
@@ -83,7 +83,7 @@ def telemetry_agent(state: RaceEngineerState):
     """
     print("\n[AGENT 1] Telemetry Chief: Interpreting driver feedback...")
 
-    # DECISION 0: Interpret driver feedback (Perception → Reasoning)
+    # DECISION 0: Interpret driver feedback (Perception -> Reasoning)
     driver_feedback = state.get('driver_feedback', {})
     driver_diagnosis = {}
 

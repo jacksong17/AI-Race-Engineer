@@ -135,7 +135,7 @@ if session_history:
             if 'tire_' in word or 'cross_' in word or 'spring_' in word or 'track_bar' in word:
                 param_name = word.strip('.,;:')
                 break
-        print(f"      {i}. {timestamp} → Tested {param_name}")
+        print(f"      {i}. {timestamp} -> Tested {param_name}")
 
 else:
     print("   [SESSION MEMORY] No previous stints found")
@@ -214,7 +214,7 @@ initial_state = {
     'convergence_progress': learning_metrics.get('convergence_metric') if learning_metrics else None
 }
 
-# Run the full LangGraph workflow (Telemetry Chief → Data Scientist → Crew Chief)
+# Run the full LangGraph workflow (Telemetry Chief -> Data Scientist -> Crew Chief)
 state = app.invoke(initial_state)
 
 if 'error' in state and state['error']:
