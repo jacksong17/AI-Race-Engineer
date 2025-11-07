@@ -75,7 +75,7 @@ loader = CSVDataLoader()
 df = loader.load_data()
 
 if df is not None:
-    print("✓ Using REAL lap data from CSV")
+    print("[OK] Using REAL lap data from CSV")
     df = loader.prepare_for_ai_analysis(df)
     stats = loader.get_summary_statistics(df)
     print(f"  Sessions: {stats.get('num_sessions', 'N/A')}")
@@ -99,7 +99,7 @@ else:
 # Step 1.5: Gather driver feedback (INTERACTIVE)
 print("[1.5/5] Driver Feedback Session...")
 print()
-print("🏁 DRIVER DEBRIEF:")
+print("DRIVER DEBRIEF:")
 print("   (The crew chief asks the driver about the car's handling...)")
 print()
 
@@ -126,7 +126,7 @@ else:
         print(f"\n   (Using default feedback: \"{raw_driver_feedback[:80]}...\")")
 
 print()
-print("   🤖 Interpreting driver feedback with AI...")
+print("   [AI] Interpreting driver feedback with AI...")
 
 # Use LLM to interpret natural language feedback
 from driver_feedback_interpreter import interpret_driver_feedback_with_llm
@@ -137,7 +137,7 @@ driver_feedback = interpret_driver_feedback_with_llm(
     llm_provider="anthropic"  # or "openai" or "mock"
 )
 
-print(f"   ✓ Interpretation complete")
+print(f"   [OK] Interpretation complete")
 print(f"      Complaint type: {driver_feedback['complaint']}")
 print(f"      Severity: {driver_feedback['severity']}")
 print(f"      Technical diagnosis: {driver_feedback['diagnosis']}")

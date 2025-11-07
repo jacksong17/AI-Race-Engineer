@@ -71,14 +71,14 @@ class CSVDataLoader:
             filepath = self.find_data_file()
 
         if filepath is None:
-            print("⚠️  No CSV or .ldx data files found")
+            print("[WARNING]  No CSV or .ldx data files found")
             print(f"   CSV searched: {[str(p) for p in self.data_paths]}")
             print(f"   LDX searched: {self.ldx_path}/*.ldx")
             return None
 
         try:
             df = pd.read_csv(filepath)
-            print(f"✓ Loaded real data from: {filepath}")
+            print(f"[OK] Loaded real data from: {filepath}")
             print(f"  {len(df)} laps, {len(df.columns)} columns")
 
             # Validate and prepare
@@ -87,7 +87,7 @@ class CSVDataLoader:
             return df
 
         except Exception as e:
-            print(f"❌ Error loading CSV: {e}")
+            print(f"[ERROR] Error loading CSV: {e}")
             return None
 
     def _load_ldx_files(self) -> Optional[pd.DataFrame]:
@@ -108,7 +108,7 @@ class CSVDataLoader:
                 all_sessions.append(data)
 
             df = pd.DataFrame(all_sessions)
-            print(f"✓ Loaded real data from {len(ldx_files)} .ldx files")
+            print(f"[OK] Loaded real data from {len(ldx_files)} .ldx files")
             print(f"  {len(df)} sessions from {df['venue'].iloc[0] if 'venue' in df.columns else 'unknown track'}")
 
             # Validate and prepare
@@ -117,7 +117,7 @@ class CSVDataLoader:
             return df
 
         except Exception as e:
-            print(f"❌ Error loading .ldx files: {e}")
+            print(f"[ERROR] Error loading .ldx files: {e}")
             return None
 
     def _validate_and_prepare(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -169,7 +169,7 @@ class CSVDataLoader:
         print(f"  Telemetry metrics: {len(available_metrics)} available")
 
         if len(available_setup) == 0:
-            print("  ⚠️  Warning: No setup parameters found in CSV")
+            print("  [WARNING]  Warning: No setup parameters found in CSV")
             print("     Analysis will be limited to lap time trends only")
 
         # Sort by session and lap number if available

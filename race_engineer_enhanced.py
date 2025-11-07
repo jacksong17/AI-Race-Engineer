@@ -53,14 +53,14 @@ def data_quality_agent(state: RaceEngineerState) -> Dict:
         print(f"   ⚠️  Detected {len(outliers)} outlier sessions (>{outlier_threshold:.3f}s)")
         if len(outliers) < len(df) * 0.2:  # Less than 20% outliers
             df_clean = df[lap_times <= outlier_threshold]
-            print(f"   ✓ DECISION: Removing outliers (keeping {len(df_clean)} sessions)")
+            print(f"    DECISION: Removing outliers (keeping {len(df_clean)} sessions)")
             decision = "removed_outliers"
         else:
-            print(f"   ✓ DECISION: Keeping all data (too many outliers to remove)")
+            print(f"    DECISION: Keeping all data (too many outliers to remove)")
             df_clean = df
             decision = "kept_outliers"
     else:
-        print(f"   ✓ DECISION: No outliers detected, using all data")
+        print(f"    DECISION: No outliers detected, using all data")
         df_clean = df
         decision = "no_outliers"
 
@@ -141,7 +141,7 @@ def feature_selection_agent(state: RaceEngineerState) -> Dict:
     print(f"   🎯 Selected {len(selected)} features for analysis:")
     for feat in selected:
         var = df[feat].std()
-        print(f"      ✓ {feat:25s} (variance: {var:.3f})")
+        print(f"       {feat:25s} (variance: {var:.3f})")
 
     if rejected:
         print(f"   ✗ Rejected {len(rejected)} features:")
@@ -194,16 +194,16 @@ def model_selection_agent(state: RaceEngineerState) -> Dict:
     # Decision logic
     if sample_size < 10:
         strategy = "correlation"
-        print(f"   ✓ DECISION: Using CORRELATION (small sample)")
+        print(f"    DECISION: Using CORRELATION (small sample)")
     elif feature_count > sample_size / 2:
         strategy = "correlation"
-        print(f"   ✓ DECISION: Using CORRELATION (many features vs samples)")
+        print(f"    DECISION: Using CORRELATION (many features vs samples)")
     elif variance < 0.15:
         strategy = "correlation"
-        print(f"   ✓ DECISION: Using CORRELATION (low variance)")
+        print(f"    DECISION: Using CORRELATION (low variance)")
     else:
         strategy = "regression"
-        print(f"   ✓ DECISION: Using REGRESSION (adequate data quality)")
+        print(f"    DECISION: Using REGRESSION (adequate data quality)")
 
     # Execute chosen strategy
     try:
@@ -328,7 +328,7 @@ def recommendation_agent(state: RaceEngineerState) -> Dict:
         params = [p for p, _ in top_3]
         rec = f"No dominant parameter. Test interaction between: {', '.join(params)}"
 
-    print(f"   ✓ DECISION: {rec}")
+    print(f"    DECISION: {rec}")
 
     # Additional insights
     if len(sorted_impacts) > 3:

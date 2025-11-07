@@ -13,7 +13,7 @@ sys.path.append('.')
 def test_telemetry_parsing():
     """Test the telemetry parser with Bristol data"""
 
-    print("🏁 Bristol AI Race Engineer - Telemetry Parser Test")
+    print(" Bristol AI Race Engineer - Telemetry Parser Test")
     print("=" * 60)
 
     # Import our parser
@@ -23,9 +23,9 @@ def test_telemetry_parsing():
     ldx_files = list(Path("bristol_data").glob("*.ldx"))
 
     if not ldx_files:
-        print("❌ No .ldx files found in bristol_data/ directory")
-        print("ℹ️  This test requires actual telemetry files")
-        print("ℹ️  For full demo with mock data, run: python main.py")
+        print("[ERROR] No .ldx files found in bristol_data/ directory")
+        print("[INFO]  This test requires actual telemetry files")
+        print("[INFO]  For full demo with mock data, run: python main.py")
         return None, None
 
     # Use the first file found
@@ -39,11 +39,11 @@ def test_telemetry_parsing():
     data = parser.parse_ldx_file(sample_file)
     
     # Display key setup parameters
-    print("\n🔧 Setup Parameters Extracted:")
+    print("\n[TOOL] Setup Parameters Extracted:")
     print(f"   Cross Weight: {data.get('cross_weight', 'N/A')}%")
     print(f"   Nose Weight: {data.get('nose_weight', 'N/A')}%")
     
-    print(f"\n📊 Tire Pressures (PSI):")
+    print(f"\n[DATA] Tire Pressures (PSI):")
     print(f"   Left Front:  {data.get('tire_psi_lf', 0):.1f}")
     print(f"   Right Front: {data.get('tire_psi_rf', 0):.1f}")
     print(f"   Left Rear:   {data.get('tire_psi_lr', 0):.1f}")
@@ -72,7 +72,7 @@ def test_telemetry_parsing():
     with open(output_file, 'w') as f:
         json.dump(data, f, indent=2, default=str)
     
-    print(f"\n✅ Success! Full data saved to: {output_file}")
+    print(f"\n[OK] Success! Full data saved to: {output_file}")
     print("\n" + "=" * 60)
     
     # Now test the IBT parser with mock data
@@ -90,7 +90,7 @@ def test_telemetry_parsing():
     # Extract lap statistics
     lap_stats = ibt_parser.extract_lap_statistics(mock_telemetry)
     
-    print(f"\n📊 Lap Statistics:")
+    print(f"\n[DATA] Lap Statistics:")
     print(f"   Laps analyzed: {len(lap_stats)}")
     print(f"   Best lap time: {lap_stats['lap_time'].min():.3f} seconds")
     print(f"   Average lap time: {lap_stats['lap_time'].mean():.3f} seconds")
@@ -99,10 +99,10 @@ def test_telemetry_parsing():
     # Save lap stats
     lap_stats_file = Path("lap_statistics_sample.csv")
     lap_stats.to_csv(lap_stats_file, index=False)
-    print(f"\n✅ Lap statistics saved to: {lap_stats_file}")
+    print(f"\n[OK] Lap statistics saved to: {lap_stats_file}")
     
     print("\n" + "=" * 60)
-    print("🏁 Telemetry pipeline verified and ready!")
+    print(" Telemetry pipeline verified and ready!")
     print("\nNext steps:")
     print("1. Collect your Bristol test data (30 runs)")
     print("2. Export as .ldx files from MoTec")

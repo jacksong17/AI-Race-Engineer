@@ -70,7 +70,7 @@ def _call_anthropic(prompt: str, raw_feedback: str) -> Dict:
 
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
-            print("⚠️  ANTHROPIC_API_KEY not found. Using mock interpretation.")
+            print("[WARNING]  ANTHROPIC_API_KEY not found. Using mock interpretation.")
             return _mock_interpretation(raw_feedback)
 
         client = anthropic.Anthropic(api_key=api_key)
@@ -89,18 +89,18 @@ def _call_anthropic(prompt: str, raw_feedback: str) -> Dict:
         # Parse JSON response
         try:
             result = json.loads(response_text)
-            print(f"   🤖 LLM interpreted feedback successfully")
+            print(f"   [LLM] LLM interpreted feedback successfully")
             return result
         except json.JSONDecodeError:
-            print(f"   ⚠️  LLM response wasn't valid JSON. Using mock interpretation.")
+            print(f"   [WARNING]  LLM response wasn't valid JSON. Using mock interpretation.")
             print(f"   Response was: {response_text[:100]}...")
             return _mock_interpretation(raw_feedback)
 
     except ImportError:
-        print("   ⚠️  anthropic package not installed. Run: pip install anthropic")
+        print("   [WARNING]  anthropic package not installed. Run: pip install anthropic")
         return _mock_interpretation(raw_feedback)
     except Exception as e:
-        print(f"   ⚠️  LLM call failed: {e}. Using mock interpretation.")
+        print(f"   [WARNING]  LLM call failed: {e}. Using mock interpretation.")
         return _mock_interpretation(raw_feedback)
 
 
@@ -111,7 +111,7 @@ def _call_openai(prompt: str, raw_feedback: str) -> Dict:
 
         api_key = os.environ.get("OPENAI_API_KEY")
         if not api_key:
-            print("⚠️  OPENAI_API_KEY not found. Using mock interpretation.")
+            print("[WARNING]  OPENAI_API_KEY not found. Using mock interpretation.")
             return _mock_interpretation(raw_feedback)
 
         client = OpenAI(api_key=api_key)
@@ -130,17 +130,17 @@ def _call_openai(prompt: str, raw_feedback: str) -> Dict:
 
         try:
             result = json.loads(response_text)
-            print(f"   🤖 LLM interpreted feedback successfully")
+            print(f"   [LLM] LLM interpreted feedback successfully")
             return result
         except json.JSONDecodeError:
-            print(f"   ⚠️  LLM response wasn't valid JSON. Using mock interpretation.")
+            print(f"   [WARNING]  LLM response wasn't valid JSON. Using mock interpretation.")
             return _mock_interpretation(raw_feedback)
 
     except ImportError:
-        print("   ⚠️  openai package not installed. Run: pip install openai")
+        print("   [WARNING]  openai package not installed. Run: pip install openai")
         return _mock_interpretation(raw_feedback)
     except Exception as e:
-        print(f"   ⚠️  LLM call failed: {e}. Using mock interpretation.")
+        print(f"   [WARNING]  LLM call failed: {e}. Using mock interpretation.")
         return _mock_interpretation(raw_feedback)
 
 
@@ -209,7 +209,7 @@ def _mock_interpretation(raw_feedback: str) -> Dict:
     elif any(word in feedback_lower for word in ["slight", "little", "bit", "minor"]):
         result["severity"] = "minor"
 
-    print(f"   🔧 Using rule-based interpretation (no LLM API available)")
+    print(f"   [FALLBACK] Using rule-based interpretation (no LLM API available)")
     return result
 
 
