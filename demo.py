@@ -96,22 +96,52 @@ else:
     print(f"   Lap time range: {df['fastest_time'].min():.3f}s - {df['fastest_time'].max():.3f}s")
     print()
 
-# Step 1.5: Gather driver feedback
+# Step 1.5: Gather driver feedback (INTERACTIVE)
 print("[1.5/5] Driver Feedback Session...")
 print()
 print("🏁 DRIVER DEBRIEF:")
-print("   Driver: 'The car feels a bit loose coming off the corners.'")
-print("   Driver: 'I'm fighting oversteer in turns 1 and 2, especially on exit.'")
-print("   Driver: 'Rear end wants to come around when I get on the throttle.'")
+print("   (The crew chief asks the driver about the car's handling...)")
 print()
 
-# Driver feedback for AI processing
-driver_feedback = {
-    'complaint': 'loose_oversteer',
-    'description': 'Car feels loose off corners, fighting oversteer in turns 1-2, rear end unstable on throttle',
-    'severity': 'moderate',
-    'phase': 'corner_exit'
-}
+# Check if running interactively or in batch mode
+import sys
+if len(sys.argv) > 1:
+    # Command-line argument provided
+    raw_driver_feedback = ' '.join(sys.argv[1:])
+    print(f"   Driver: \"{raw_driver_feedback}\"")
+else:
+    # Interactive input
+    print("   Enter driver feedback (or press Enter for default):")
+    print("   Examples:")
+    print("     - 'Car feels loose coming off the corners'")
+    print("     - 'Front end pushes in turn 1 and 2'")
+    print("     - 'Bottoming out in the center of corners'")
+    print()
+    print("   Driver: ", end='', flush=True)
+    raw_driver_feedback = input().strip()
+
+    if not raw_driver_feedback:
+        # Use default example
+        raw_driver_feedback = "The car feels a bit loose coming off the corners. I'm fighting oversteer in turns 1 and 2, especially on exit. Rear end wants to come around when I get on the throttle."
+        print(f"\n   (Using default feedback: \"{raw_driver_feedback[:80]}...\")")
+
+print()
+print("   🤖 Interpreting driver feedback with AI...")
+
+# Use LLM to interpret natural language feedback
+from driver_feedback_interpreter import interpret_driver_feedback_with_llm
+
+# Try to use LLM (falls back to rule-based if no API key)
+driver_feedback = interpret_driver_feedback_with_llm(
+    raw_driver_feedback,
+    llm_provider="anthropic"  # or "openai" or "mock"
+)
+
+print(f"   ✓ Interpretation complete")
+print(f"      Complaint type: {driver_feedback['complaint']}")
+print(f"      Severity: {driver_feedback['severity']}")
+print(f"      Technical diagnosis: {driver_feedback['diagnosis']}")
+print()
 
 # Step 2: Run full AI Race Engineer workflow (all agents)
 print("[2/5] Running AI Race Engineer Workflow...")

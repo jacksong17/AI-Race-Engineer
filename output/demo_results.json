@@ -1,6 +1,6 @@
 {
   "data_source": "real_csv_data",
-  "recommendation": "STRONG RECOMMENDATION: Reduce tire_psi_rr (strong positive correlation: 0.551)\n   Expected effect: Significantly faster lap times\n   \ud83c\udfa7 Addresses driver complaint: Oversteer (loose rear end)",
+  "recommendation": "STRONG RECOMMENDATION: Reduce tire_psi_rr (strong positive correlation: 0.551)\n   Expected effect: Significantly faster lap times",
   "analysis": {
     "method": "correlation",
     "all_impacts": {
