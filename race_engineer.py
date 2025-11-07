@@ -603,6 +603,21 @@ def engineer_agent(state: RaceEngineerState):
             print(f"\n   [CREW CHIEF PERSPECTIVE]")
             print(f"   {llm_explanation}")
 
+        # DECISION 4.5: Generate driver acknowledgment for non-technical aspects
+        # This addresses tone, personality, or comments not captured in technical diagnosis
+        raw_driver_feedback = state.get('raw_driver_feedback')
+        if raw_driver_feedback:
+            from llm_explainer import generate_driver_acknowledgment
+
+            driver_ack = generate_driver_acknowledgment(
+                raw_driver_feedback,
+                driver_diagnosis.get('diagnosis', 'General handling issue')
+            )
+
+            if driver_ack:
+                print(f"\n   [DRIVER ACKNOWLEDGMENT]")
+                print(f"   {driver_ack}")
+
     except ImportError:
         # llm_explainer module not available, skip this step
         pass

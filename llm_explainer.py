@@ -108,6 +108,74 @@ def _template_explanation(decision_context: Dict) -> str:
         )
 
 
+def generate_driver_acknowledgment(
+    raw_driver_feedback: str,
+    technical_diagnosis: str,
+    model: str = "claude-3-haiku-20240307"
+) -> Optional[str]:
+    """
+    Generate a crew chief acknowledgment that addresses the driver's tone/personality/non-technical comments
+
+    Args:
+        raw_driver_feedback: The original unprocessed driver feedback
+        technical_diagnosis: The technical interpretation that was already handled
+        model: Anthropic model to use
+
+    Returns:
+        A single sentence acknowledging driver's tone/personality, or None if no acknowledgment needed
+    """
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key or not raw_driver_feedback:
+        return None
+
+    try:
+        import anthropic
+
+        client = anthropic.Anthropic(api_key=api_key)
+
+        prompt = f"""You are a NASCAR crew chief. The driver just gave you this feedback:
+
+"{raw_driver_feedback}"
+
+The technical aspects have been addressed (diagnosis: "{technical_diagnosis}").
+
+Your task: Generate ONE SENTENCE that acknowledges the driver's TONE, PERSONALITY, or any NON-TECHNICAL comments (humor, frustration, comparisons, colorful language, etc.) that weren't captured in the technical diagnosis.
+
+Rules:
+1. ONLY respond if there's something non-technical to acknowledge (tone, personality, humor, frustration, comparisons)
+2. Match their energy - if they're frustrated, acknowledge it; if they're being funny, be light
+3. Keep it brief and natural (one sentence, 10-20 words max)
+4. If the feedback is purely technical with no personality, respond with just: "NONE"
+
+Examples:
+- Input: "Car feels loose off corners" → Output: "NONE"
+- Input: "Car feels bad. turtles drive faster" → Output: "I hear you - we'll get you faster than those turtles, guaranteed."
+- Input: "This thing is a disaster, worse than yesterday" → Output: "Understood - we know yesterday was rough, let's turn this around."
+- Input: "Front end pushes like crazy in turn 1" → Output: "NONE"
+
+Now respond for the driver's feedback above:"""
+
+        message = client.messages.create(
+            model=model,
+            max_tokens=100,
+            temperature=0.5,  # Slightly more creative for personality matching
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        acknowledgment = message.content[0].text.strip()
+
+        # Return None if no acknowledgment is needed
+        if acknowledgment == "NONE" or not acknowledgment:
+            return None
+
+        return acknowledgment
+
+    except Exception as e:
+        # Fail silently - acknowledgment is optional
+        return None
+
+
 def generate_llm_multi_turn_analysis(
     session_history: list,
     current_recommendation: Dict,
