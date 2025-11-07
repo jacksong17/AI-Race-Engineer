@@ -26,6 +26,14 @@ class RaceEngineerState(TypedDict):
     recommendation: Optional[str]
     error: Optional[str]
 
+    # Session Memory Fields (for iterative learning across stints)
+    session_history: Optional[List[Dict]]  # Previous sessions for context
+    session_timestamp: Optional[str]  # ISO timestamp for this session
+    learning_metrics: Optional[Dict]  # Aggregated patterns across sessions
+    previous_recommendations: Optional[List]  # Last 3-5 recommendations
+    outcome_feedback: Optional[Dict]  # User validation of recommendation
+    convergence_progress: Optional[float]  # % improvement trend
+
 
 # State visibility helper
 def _print_state_transition(from_agent: str, to_agent: str, state: RaceEngineerState):
@@ -509,6 +517,36 @@ def engineer_agent(state: RaceEngineerState):
     except Exception as e:
         # Don't fail the whole workflow if LLM explanation fails
         print(f"\n   [INFO] LLM explanation unavailable: {str(e)[:50]}")
+
+    # DECISION 5 (OPTIONAL): Multi-Turn Session Analysis
+    # Analyze patterns across multiple stints for iterative learning
+    session_history = state.get('session_history', [])
+    if session_history and len(session_history) >= 1:
+        try:
+            from llm_explainer import generate_llm_multi_turn_analysis
+
+            print(f"\n   [SESSION LEARNING] Analyzing patterns from {len(session_history)} previous stint(s)...")
+
+            current_context = {
+                'driver_complaint': driver_diagnosis.get('diagnosis', 'None'),
+                'recommended_param': param,
+                'recommended_impact': impact,
+                'recommendation': rec
+            }
+
+            insights = generate_llm_multi_turn_analysis(
+                session_history,
+                current_context
+            )
+
+            if insights:
+                print(f"\n   [MULTI-STINT INSIGHTS]")
+                print(f"   {insights}")
+
+        except ImportError:
+            pass
+        except Exception as e:
+            print(f"\n   [INFO] Multi-turn analysis unavailable: {str(e)[:50]}")
 
     return {"recommendation": rec}
 

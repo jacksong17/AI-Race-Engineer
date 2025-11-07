@@ -8,7 +8,9 @@ from pathlib import Path
 import pandas as pd
 import json
 import numpy as np
+from datetime import datetime
 from csv_data_loader import CSVDataLoader
+from session_manager import SessionManager
 
 
 def generate_mock_data():
@@ -96,6 +98,51 @@ else:
     print(f"   Lap time range: {df['fastest_time'].min():.3f}s - {df['fastest_time'].max():.3f}s")
     print()
 
+# Step 1.25: Load session history for iterative learning
+print("[1.25/5] Loading session memory...")
+print()
+
+session_mgr = SessionManager()
+session_history = session_mgr.load_session_history(limit=5)
+learning_metrics = session_mgr.get_learning_metrics()
+
+if session_history:
+    print(f"   [SESSION MEMORY] Loaded {len(session_history)} previous stint(s)")
+
+    # Display session summary
+    if learning_metrics:
+        print(f"   [LEARNING] Total sessions tracked: {learning_metrics.get('total_sessions', 0)}")
+
+        param_tests = learning_metrics.get('parameter_tests', {})
+        if param_tests:
+            most_tested = sorted(param_tests.items(), key=lambda x: x[1], reverse=True)[:3]
+            print(f"   [LEARNING] Most tested parameters:")
+            for param, count in most_tested:
+                print(f"      • {param}: {count}x")
+
+        convergence = learning_metrics.get('convergence_metric')
+        if convergence:
+            print(f"   [LEARNING] Convergence: {convergence:.0%} (focus on consistent params)")
+
+    # Show brief history
+    print(f"\n   Recent stint history:")
+    for i, session in enumerate(session_history[:3], 1):
+        timestamp = session.get('timestamp', 'Unknown')[:16]  # Show date + time
+        rec = session.get('recommendation', 'N/A')
+        # Extract just the parameter name from recommendation
+        param_name = "N/A"
+        for word in rec.split():
+            if 'tire_' in word or 'cross_' in word or 'spring_' in word or 'track_bar' in word:
+                param_name = word.strip('.,;:')
+                break
+        print(f"      {i}. {timestamp} → Tested {param_name}")
+
+else:
+    print("   [SESSION MEMORY] No previous stints found")
+    print("   [INFO] This is your first stint - session learning will begin after this run")
+
+print()
+
 # Step 1.5: Gather driver feedback (INTERACTIVE)
 print("[1.5/5] Driver Feedback Session...")
 print()
@@ -157,7 +204,14 @@ initial_state = {
     'selected_features': None,
     'analysis': None,
     'recommendation': None,
-    'error': None
+    'error': None,
+    # Session memory fields for iterative learning
+    'session_history': session_history,
+    'session_timestamp': datetime.now().isoformat(),
+    'learning_metrics': learning_metrics,
+    'previous_recommendations': [s.get('recommendation') for s in session_history[:3]] if session_history else None,
+    'outcome_feedback': None,
+    'convergence_progress': learning_metrics.get('convergence_metric') if learning_metrics else None
 }
 
 # Run the full LangGraph workflow (Telemetry Chief → Data Scientist → Crew Chief)
@@ -166,6 +220,10 @@ state = app.invoke(initial_state)
 if 'error' in state and state['error']:
     print(f"   [ERROR] {state['error']}")
     sys.exit(1)
+
+# Save session to persistent storage for iterative learning
+session_id = session_mgr.save_session(state)
+print(f"   [SESSION] Saved to session memory: {session_id}")
 
 print()
 
