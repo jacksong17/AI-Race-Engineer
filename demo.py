@@ -297,14 +297,13 @@ print()
 
 analysis = state.get('analysis', {})
 if analysis:
-    print("KEY FINDINGS (To Go Faster):")
+    print("KEY FINDINGS (Correlation Analysis):")
     all_impacts = analysis.get('all_impacts', {})
     sorted_impacts = sorted(all_impacts.items(), key=lambda x: abs(x[1]), reverse=True)
 
     for param, impact in sorted_impacts[:5]:
         direction = "REDUCE" if impact > 0 else "INCREASE"
-        impact_desc = "slower" if impact > 0 else "faster"
-        print(f"   {direction:8s} {param:25s} (impact: {abs(impact):.3f}) - currently making car {impact_desc}")
+        print(f"   {direction:8s} {param:25s} (correlation: {impact:+.3f})")
 
 print()
 print("PERFORMANCE IMPROVEMENT:")

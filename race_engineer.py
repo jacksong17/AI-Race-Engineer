@@ -40,9 +40,18 @@ class RaceEngineerState(TypedDict):
     setup_knowledge_base: Optional[Dict]  # Car setup manual context
 
 
+# Quiet mode helper
+def _is_quiet_mode():
+    """Check if running in quiet mode (minimal output)"""
+    import os
+    return os.environ.get('QUIET_MODE') == '1'
+
 # State visibility helper
 def _print_state_transition(from_agent: str, to_agent: str, state: RaceEngineerState):
     """Display state being passed between agents for demo visibility"""
+    if _is_quiet_mode():
+        return  # Suppress state handoffs in quiet mode
+
     print(f"\n{'='*70}")
     print(f"  STATE HANDOFF: {from_agent} -> {to_agent}")
     print(f"{'='*70}")
@@ -93,7 +102,8 @@ def telemetry_agent(state: RaceEngineerState):
     - Remove outliers or keep them?
     - Sufficient data for analysis?
     """
-    print("\n[AGENT 1] Telemetry Chief: Interpreting driver feedback...")
+    if not _is_quiet_mode():
+        print("\n[AGENT 1] Telemetry Chief: Interpreting driver feedback...")
 
     # DECISION 0: Interpret driver feedback (Perception -> Reasoning)
     driver_feedback = state.get('driver_feedback', {})
@@ -507,28 +517,109 @@ def engineer_agent(state: RaceEngineerState):
         signal_strength = "WEAK"
         print(f"    DECISION: Weak signal (|{impact:.3f}| < 0.05)")
 
-    # DECISION 2: Generate appropriate recommendation
+    # DECISION 2: Generate appropriate recommendation with specific values
     if signal_strength == "STRONG":
-        # Add context based on how we made the decision
-        context_note = ""
-        if decision_rationale == "driver_validated_by_data":
-            context_note = f"\n    Addresses driver complaint: {driver_diagnosis.get('diagnosis', '')}"
-        elif decision_rationale == "driver_feedback_prioritized":
-            context_note = f"\n    Prioritizes driver complaint: {driver_diagnosis.get('diagnosis', '')}"
-            context_note += f"\n    Note: Data suggested different parameter, but trusting driver expertise"
+        # Calculate specific adjustment recommendation
+        setup_knowledge = state.get('setup_knowledge_base', {})
+        param_limits = setup_knowledge.get('limits', {}).get(param, {})
 
+        # Determine adjustment magnitude based on correlation strength
         if method == "correlation":
-            if impact < -0.1:
-                rec = f"STRONG RECOMMENDATION: Increase {param} (correlation: {impact:.3f})\n" + \
-                      f"   Expected effect: Significantly faster lap times{context_note}"
+            increasing = impact < 0  # Negative correlation means increase to go faster
+
+            # Calculate suggested adjustment
+            adjustment_str = ""
+            rationale_str = ""
+
+            if 'tire_psi' in param:
+                # Tire pressure: suggest 1-2 PSI changes
+                if abs(impact) > 0.4:
+                    adjustment = 2.0
+                elif abs(impact) > 0.2:
+                    adjustment = 1.5
+                else:
+                    adjustment = 1.0
+
+                direction_word = "Increase" if increasing else "Reduce"
+                adjustment_str = f"{direction_word} {param} by {adjustment} PSI"
+
+                if increasing:
+                    rationale_str = "Higher pressure increases tire stiffness and reduces contact patch, improving responsiveness"
+                else:
+                    rationale_str = "Lower pressure increases contact patch and mechanical grip, improving traction"
+
+            elif 'spring' in param:
+                # Springs: suggest 25-50 lb/in changes
+                if abs(impact) > 0.4:
+                    adjustment = 50
+                elif abs(impact) > 0.2:
+                    adjustment = 37.5
+                else:
+                    adjustment = 25
+
+                direction_word = "Stiffen" if not increasing else "Soften"
+                adjustment_str = f"{direction_word} {param} by {adjustment:.0f} lb/in"
+
+                if not increasing:
+                    rationale_str = "Stiffer springs reduce body roll and improve platform stability in corners"
+                else:
+                    rationale_str = "Softer springs improve mechanical grip by maintaining tire contact through bumps"
+
+            elif 'cross_weight' in param:
+                # Cross weight: suggest 0.5-1.0% changes
+                if abs(impact) > 0.4:
+                    adjustment = 1.0
+                elif abs(impact) > 0.2:
+                    adjustment = 0.75
+                else:
+                    adjustment = 0.5
+
+                direction_word = "Increase" if not increasing else "Reduce"
+                adjustment_str = f"{direction_word} {param} by {adjustment}%"
+
+                if not increasing:
+                    rationale_str = "More cross weight transfers load to right-rear, improving turn entry bite"
+                else:
+                    rationale_str = "Less cross weight reduces turn entry push and improves front grip"
+
+            elif 'track_bar' in param:
+                # Track bar: suggest 0.25-0.5 inch changes
+                if abs(impact) > 0.4:
+                    adjustment = 0.5
+                elif abs(impact) > 0.2:
+                    adjustment = 0.375
+                else:
+                    adjustment = 0.25
+
+                direction_word = "Raise" if not increasing else "Lower"
+                adjustment_str = f"{direction_word} {param} by {adjustment} inches"
+
+                if not increasing:
+                    rationale_str = "Raising track bar shifts rear roll center, tightening the car"
+                else:
+                    rationale_str = "Lowering track bar shifts rear roll center, loosening the car"
             else:
-                rec = f"STRONG RECOMMENDATION: Reduce {param} (correlation: {impact:.3f})\n" + \
-                      f"   Expected effect: Significantly faster lap times{context_note}"
+                # Generic parameter
+                direction_word = "Increase" if increasing else "Reduce"
+                adjustment_str = f"{direction_word} {param}"
+                rationale_str = "Correlation analysis indicates this adjustment will improve lap times"
+
+            # Add context based on how we made the decision
+            context_note = ""
+            if decision_rationale == "driver_validated_by_data":
+                context_note = f"\n   Addresses driver complaint: {driver_diagnosis.get('diagnosis', '')}"
+            elif decision_rationale == "driver_feedback_prioritized":
+                context_note = f"\n   Prioritizes driver complaint: {driver_diagnosis.get('diagnosis', '')}"
+                context_note += f"\n   Note: Data suggested different parameter, but trusting driver expertise"
+
+            rec = f"STRONG RECOMMENDATION: {adjustment_str} (correlation: {impact:.3f})\n" + \
+                  f"   Expected effect: {rationale_str}{context_note}"
+
         else:  # regression
             direction = "REDUCE" if impact > 0 else "INCREASE"
             rec = f"PRIMARY FOCUS: {direction} {param}\n" + \
                   f"   Predicted impact: {abs(impact):.3f}s per standardized unit\n" + \
-                  f"   Confidence: High (regression coefficient){context_note}"
+                  f"   Confidence: High (regression coefficient)"
 
         print(f"    DECISION: Single-parameter recommendation ({param})")
 
