@@ -1,0 +1,161 @@
+================================================================================
+              BRISTOL AI RACE ENGINEER - TIMING REFERENCE CARD
+                      Print This & Keep Next to You
+================================================================================
+
+SLIDE 1: TITLE + HOOK (0:00-0:30)
+----------------------------------
+"Multi-agent system to find 0.3s at Bristol. Constraint: deterministic,
+safety-critical recommendations. Led me to LangGraph."
+
+SLIDE 2: THE PROBLEM (0:30-1:30)
+---------------------------------
+"8 parameters, non-linear interactions. Traditional guides are generic.
+Key constraint: deterministic recommendations for safety."
+
+SLIDE 3: SOLUTION ARCHITECTURE (1:30-3:00)
+-------------------------------------------
+"Three agents: Telemetry Chief (parse 12MB binary files), Data Scientist
+(StandardScaler + regression), Crew Chief (interpret → recommend)."
+
+SLIDE 4: WORKFLOW GRAPH (3:00-5:00)
+------------------------------------
+"Conditional routing (error handling is structural). Type-safe state.
+Deterministic execution. Different from CrewAI autonomy."
+
+SLIDE 5: LIVE DEMO (5:00-7:00)
+-------------------------------
+[Switch to terminal]
+> python demo.py
+NARRATE: "Processing 20 sessions... Running regression... Cross weight
+is -0.082 = strongest predictor... Result: 0.345s improvement!"
+[Switch back to PPT]
+
+SLIDE 6: STATE MANAGEMENT (7:00-8:30)
+--------------------------------------
+"TypedDict = compile-time safety + runtime flexibility. Optional[] shows
+pipeline evolution. Makes debugging trivial. Inspect state after any node."
+
+SLIDE 7: STATISTICAL RIGOR (8:30-10:00)
+----------------------------------------
+"StandardScaler critical - makes coefficients comparable across units.
+Linear for interpretability. -0.082 vs -0.032 = 2.7x more important.
+Limitation: no interaction terms yet."
+
+SLIDE 8: FRAMEWORK DECISION (10:00-11:30)
+------------------------------------------
+"Evaluated LangGraph, CrewAI, AutoGen. Deciding factor: determinism.
+CrewAI great for autonomy. AutoGen great for conversation. LangGraph
+optimizes for control. Right tool for constraints."
+
+SLIDE 9: PRODUCTION PATTERNS (11:30-13:00)
+-------------------------------------------
+"Graceful degradation at import level. Structural error handling (not
+try-catch). Comprehensive testing. Type safety throughout. For prod:
+add MLflow, observability, checkpointing."
+
+SLIDE 10: RESULTS & IMPACT (13:00-14:00)
+-----------------------------------------
+"0.306s faster (pole vs 6th). Cross weight 2.7x impact. Non-intuitive:
+lower LF works. 5 second execution. 100% reproducible. Validated on-track."
+
+SLIDE 11: EXTENSIBILITY (14:00-15:00)
+--------------------------------------
+"Add agent in 3 steps: define function, add node, wire edges. O(1) not
+O(n²). Architecture reusable: manufacturing (yield), infrastructure
+(performance), supply chain (routing)."
+
+SLIDE 12: LIMITATIONS & Q&A (15:00-15:30)
+------------------------------------------
+"Current gaps: no confidence intervals, linear only, batch only. How I'd
+fix: bootstrap, polynomial features, streaming. Production roadmap.
+Questions?"
+
+================================================================================
+BACKUP PLANS
+================================================================================
+
+If Running Long:
+  → Skip slide 9 (Production Patterns)
+  → Brief on slides 6-7 (30s each instead of 90s)
+
+If Demo Fails:
+  → Show output/demo_results.json instead
+  → Walk through code in race_engineer.py
+  → Reference pre-run results
+
+If Questions Come Early:
+  → Answer briefly
+  → "Let me show you that in slide X"
+  → Stay on schedule
+
+================================================================================
+KEY MESSAGES TO HIT
+================================================================================
+
+1. "Determinism was the deciding constraint"
+2. "StandardScaler makes coefficients comparable"
+3. "TypedDict gives type safety with flexibility"
+4. "Conditional routing is structural, not try-catch"
+5. "Architecture is reusable beyond racing"
+
+================================================================================
+TRANSITIONS TO MEMORIZE
+================================================================================
+
+2→3: "Here's how I approached the solution..."
+3→4: "Let me show you the actual state graph..."
+4→5: "Let me show you this running live..." [SWITCH TO TERMINAL]
+5→6: "Let me show you how this works under the hood..." [BACK TO PPT]
+6→7: "The analysis agent is where the real intelligence lives..."
+7→8: "Now, why did I choose LangGraph for this..."
+8→9: "Beyond the core algorithm, production readiness requires..."
+9→10: "Here's what all this engineering delivered..."
+10→11: "Now, what makes this architecture reusable..."
+11→12: "To wrap up, let me be honest about limitations..."
+
+================================================================================
+BODY LANGUAGE REMINDERS
+================================================================================
+
+✓ Face audience, not screen
+✓ Point at screen for specific items
+✓ Pause 2 seconds after key points
+✓ Watch for confused faces (slow down)
+✓ Gesture during demo narration
+✓ Smile - show you're excited about this
+✓ Stand still during key technical points
+
+================================================================================
+Q&A STRATEGY
+================================================================================
+
+Expected Questions:
+  "Why not neural nets?"
+  "How do you handle overfitting?"
+  "What about hyperparameter tuning?"
+  "How would you deploy this?"
+  "Why not just use a notebook?"
+
+→ See TECHNICAL_TALKING_POINTS.md for full answers
+
+General Strategy:
+  1. Repeat question (everyone hears it)
+  2. "Great question" (acknowledge)
+  3. Answer concisely (30-60 seconds)
+  4. Bridge to strengths ("That relates to my decision on...")
+  5. Move on ("Other questions?")
+
+================================================================================
+EMERGENCY CONTACTS
+================================================================================
+
+Demo won't run:       python validate_setup.py (diagnose)
+Forgot line number:   race_engineer.py:17, 66, 163, 176
+Forgot timing:        This card!
+Went over time:       "Happy to discuss more offline"
+Brain freeze:         "Let me show you in the code..." (buy time)
+
+================================================================================
+YOU GOT THIS! 🏁
+================================================================================

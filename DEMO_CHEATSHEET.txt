@@ -1,0 +1,162 @@
+================================================================================
+           BRISTOL AI RACE ENGINEER - TECHNICAL DEMO CHEATSHEET
+================================================================================
+
+COMMANDS
+--------
+Validate:  python validate_setup.py
+Demo:      python demo.py
+Graph:     python show_graph.py
+Code:      Open race_engineer.py
+
+KEY FILES & LINES
+-----------------
+race_engineer.py:17   - TypedDict (state management)
+race_engineer.py:26   - Telemetry Agent
+race_engineer.py:66   - Analysis Agent (regression)
+race_engineer.py:131  - Engineer Agent
+race_engineer.py:163  - Graph construction
+race_engineer.py:176  - Conditional routing
+ibt_parser.py:17      - Graceful degradation pattern
+
+OPENING HOOK (30 sec)
+---------------------
+"I built a multi-agent optimization system to find 3 tenths at Bristol.
+The constraint was determinism - safety-critical recommendations can't vary.
+That ruled out most frameworks and led me to LangGraph. Let me show why."
+
+FIVE TECHNICAL GEMS TO DROP
+----------------------------
+
+1. TYPE SAFETY (race_engineer.py:17)
+   "TypedDict gives compile-time checking with runtime flexibility.
+   Optional[] fields populate as state flows. IDE autocomplete, mypy
+   validation, self-documenting contracts."
+
+2. FEATURE SCALING (race_engineer.py:100-103)
+   "StandardScaler normalizes to zero mean, unit variance. Without it,
+   PSI (25-35) and weight (50-60%) have incomparable coefficients.
+   After scaling, -0.08 vs -0.03 means 2.7x more important."
+
+3. CONDITIONAL ROUTING (race_engineer.py:176)
+   "First-class error handling at graph level. If telemetry fails,
+   route to error node, not crash. In CrewAI, I'd need manual try-catch
+   everywhere. LangGraph makes failure modes structural."
+
+4. GRACEFUL DEGRADATION (ibt_parser.py:17)
+   "Import-level feature flags. With pyirsdk: parse real 12MB binary files.
+   Without: use mock data. One codebase works in prod, CI/CD, and demos.
+   Inspired by feature flags but at import level."
+
+5. WHY LANGGRAPH (30 seconds)
+   "Evaluated LangGraph, CrewAI, AutoGen. Deciding factor: determinism.
+   Same input must give same output for safety. LangGraph's explicit
+   state graph guarantees this. CrewAI/AutoGen use LLMs which vary.
+   Great for creative tasks, wrong for numerical optimization."
+
+THREE LIMITATIONS TO MENTION
+-----------------------------
+1. "No confidence intervals - need bootstrap resampling for uncertainty"
+2. "Linear only - would add polynomial features for interactions"
+3. "Batch processing - real-time would need StreamingAgent"
+
+FRAMEWORK COMPARISON TABLE
+---------------------------
+                 LangGraph  CrewAI  AutoGen
+Determinism         ✓        X       X
+State Mgmt          ✓        X       ~
+Type Safety         ✓        X       X
+Error Handling      ✓        X       X
+Production Ready    ✓        ~       X
+
+QUESTIONS & ANSWERS
+-------------------
+
+Q: "How would you handle hyperparameter tuning?"
+A: "Add HyperparameterAgent before AnalysisAgent. Grid search with
+   5-fold CV, cache results. For more params, Bayesian with Optuna."
+
+Q: "What about overfitting with small data?"
+A: "20 samples, 8 features = risky. Mitigation: L2 regularization (Ridge),
+   feature selection (LASSO), cross-validation (LOOCV), domain constraints."
+
+Q: "How do you version models?"
+A: "LangGraph checkpointing + MLflow. Add 'model_version' to TypedDict,
+   pickle artifacts with semantic versions, A/B test, keep last N for rollback."
+
+Q: "Why not neural nets?"
+A: "Three reasons: Data efficiency (need 100s), interpretability (linear
+   coefficients explain why), reliability (deterministic). Would try NN
+   with 500+ sessions, but linear is 80% of value."
+
+Q: "Why not just use a notebook?"
+A: "Notebooks great for exploration, poor for production. No state mgmt,
+   no reusability, can't unit test, no orchestration. Agents give modular,
+   testable, CI/CD-friendly components. Explored in notebook, productionized
+   as agents."
+
+DEMO STRUCTURE (15 min)
+------------------------
+1. Hook + Architecture (3 min) - Show TypedDict, explain graph
+2. Why LangGraph (2 min) - Determinism requirement, alternatives
+3. Statistical Rigor (3 min) - StandardScaler, interpretability
+4. Run Demo (1 min) - Let it run, narrate stages
+5. Production Patterns (2 min) - Error handling, testing, degradation
+6. Extensibility (2 min) - Add tire wear agent live
+7. Limitations (1 min) - Be honest about gaps
+8. Q&A Setup (1 min) - Invite deeper exploration
+
+POWER PHRASES
+-------------
+"Notice the type safety here..."
+"This pattern is reusable across domains..."
+"I chose X over Y because..."
+"The constraint drove this design..."
+"Current limitation is X. In production I'd..."
+"Great question. Let me show you..."
+
+CONFIDENCE BOOSTERS
+-------------------
+✓ Everything validated and tested
+✓ Demo runs in 5 seconds reliably
+✓ You understand every line of code
+✓ You've evaluated alternatives
+✓ You know the limitations
+✓ You can extend it live
+
+EMERGENCY BACKUP
+----------------
+If demo fails:
+1. python validate_setup.py (diagnose)
+2. Show output/demo_results.json (previous run)
+3. Walk through code architecture
+4. Offer to debug live with them
+
+META-MESSAGE
+------------
+"I learn fast" - Non-technical to binary parsing
+"I think like engineer" - Types, tests, docs
+"I understand trade-offs" - Every choice has rationale
+"I build for production" - Not just demos
+"I know gaps" - Honest about limitations
+
+THE CLOSING
+-----------
+"To summarize: LangGraph-based workflow with typed state, statistical
+rigor with proper scaling, production patterns for reliability,
+trivial extensibility, self-aware about limitations.
+
+This was a 3-day project to learn agent orchestration. I'd love to
+apply this to [COMPANY]'s problems. Happy to dive deeper into any
+aspect - stats, architecture, deployment, whatever interests you most."
+
+REMEMBER
+--------
+→ Show graph first (architecture before code)
+→ Explain WHY not just WHAT
+→ Mention limitations before they ask
+→ Connect to their use cases
+→ Stay calm and confident
+
+YOU GOT THIS! 🏁
+================================================================================
