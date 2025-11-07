@@ -8,108 +8,147 @@ from pathlib import Path
 import pandas as pd
 import json
 import numpy as np
+from csv_data_loader import CSVDataLoader
+
+
+def generate_mock_data():
+    """Generate mock Bristol testing data for demo purposes"""
+    # Bristol baseline setup (realistic values)
+    baseline_setup = {
+        'tire_psi_lf': 28.0,
+        'tire_psi_rf': 32.0,
+        'tire_psi_lr': 26.0,
+        'tire_psi_rr': 30.0,
+        'cross_weight': 54.0,
+        'track_bar_height_left': 10.0,
+        'spring_lf': 400,
+        'spring_rf': 425,
+        'fastest_time': 15.543
+    }
+
+    sessions = []
+    for i in range(20):
+        session = baseline_setup.copy()
+        session['session_id'] = f"bristol_test_{i+1}"
+
+        # Vary parameters systematically
+        if i < 5:
+            # Baseline runs
+            session['fastest_time'] = 15.543 + np.random.normal(0, 0.05)
+        elif i < 8:
+            # LF pressure tests - lower is better
+            session['tire_psi_lf'] = 28.0 + (i - 5) * 2
+            session['fastest_time'] = 15.543 - 0.05 * (8 - i) + np.random.normal(0, 0.03)
+        elif i < 11:
+            # Cross weight tests - higher is better
+            session['cross_weight'] = 52.0 + (i - 8) * 2
+            session['fastest_time'] = 15.543 - 0.08 * (i - 8) + np.random.normal(0, 0.03)
+        elif i < 14:
+            # Track bar tests
+            session['track_bar_height_left'] = 5.0 + (i - 11) * 5
+            session['fastest_time'] = 15.543 - 0.04 * (i - 11) + np.random.normal(0, 0.03)
+        else:
+            # Combined optimal settings
+            session['tire_psi_lf'] = 26.0
+            session['cross_weight'] = 56.0
+            session['track_bar_height_left'] = 12.0
+            session['fastest_time'] = 15.543 - 0.30 + np.random.normal(0, 0.02)
+
+        sessions.append(session)
+
+    return pd.DataFrame(sessions)
+
+
+# ===== MAIN EXECUTION =====
 
 print("="*70)
 print("  BRISTOL AI RACE ENGINEER - SIMPLIFIED DEMO")
 print("="*70)
 print()
 
-# Step 1: Generate mock training data
-print("[1/5] Generating mock training data...")
+# Step 1: Load real data or generate mock data
+print("[1/5] Loading training data...")
 print()
 
-# Bristol baseline setup (realistic values)
-baseline_setup = {
-    'tire_psi_lf': 28.0,
-    'tire_psi_rf': 32.0,
-    'tire_psi_lr': 26.0,
-    'tire_psi_rr': 30.0,
-    'cross_weight': 54.0,
-    'track_bar_height_left': 10.0,
-    'spring_lf': 400,
-    'spring_rf': 425,
-    'fastest_time': 15.543
+# Try to load real CSV data first
+loader = CSVDataLoader()
+df = loader.load_data()
+
+if df is not None:
+    print("✓ Using REAL lap data from CSV")
+    df = loader.prepare_for_ai_analysis(df)
+    stats = loader.get_summary_statistics(df)
+    print(f"  Sessions: {stats.get('num_sessions', 'N/A')}")
+    print(f"  Total laps: {stats['total_laps']}")
+    print(f"  Best lap: {stats['best_lap_time']:.3f}s")
+    print(f"  Avg lap: {stats['average_lap_time']:.3f}s")
+    using_real_data = True
+else:
+    print("⚠️  No real data found - Using mock data for demo")
+    print("   To use real data: Export .ibt files to CSV")
+    print("   See REAL_DATA_ANALYSIS.md for instructions")
+    print()
+    using_real_data = False
+
+    # Generate mock data for demonstration
+    df = generate_mock_data()
+    print(f"   Generated {len(df)} sessions")
+    print(f"   Lap time range: {df['fastest_time'].min():.3f}s - {df['fastest_time'].max():.3f}s")
+    print()
+
+# Step 1.5: Gather driver feedback
+print("[1.5/5] Driver Feedback Session...")
+print()
+print("🏁 DRIVER DEBRIEF:")
+print("   Driver: 'The car feels a bit loose coming off the corners.'")
+print("   Driver: 'I'm fighting oversteer in turns 1 and 2, especially on exit.'")
+print("   Driver: 'Rear end wants to come around when I get on the throttle.'")
+print()
+
+# Driver feedback for AI processing
+driver_feedback = {
+    'complaint': 'loose_oversteer',
+    'description': 'Car feels loose off corners, fighting oversteer in turns 1-2, rear end unstable on throttle',
+    'severity': 'moderate',
+    'phase': 'corner_exit'
 }
 
-sessions = []
-for i in range(20):
-    session = baseline_setup.copy()
-    session['session_id'] = f"bristol_test_{i+1}"
-
-    # Vary parameters systematically
-    if i < 5:
-        # Baseline runs
-        session['fastest_time'] = 15.543 + np.random.normal(0, 0.05)
-    elif i < 8:
-        # LF pressure tests - lower is better
-        session['tire_psi_lf'] = 28.0 + (i - 5) * 2
-        session['fastest_time'] = 15.543 - 0.05 * (8 - i) + np.random.normal(0, 0.03)
-    elif i < 11:
-        # Cross weight tests - higher is better
-        session['cross_weight'] = 52.0 + (i - 8) * 2
-        session['fastest_time'] = 15.543 - 0.08 * (i - 8) + np.random.normal(0, 0.03)
-    elif i < 14:
-        # Track bar tests
-        session['track_bar_height_left'] = 5.0 + (i - 11) * 5
-        session['fastest_time'] = 15.543 - 0.04 * (i - 11) + np.random.normal(0, 0.03)
-    else:
-        # Combined optimal settings
-        session['tire_psi_lf'] = 26.0
-        session['cross_weight'] = 56.0
-        session['track_bar_height_left'] = 12.0
-        session['fastest_time'] = 15.543 - 0.30 + np.random.normal(0, 0.02)
-
-    sessions.append(session)
-
-df = pd.DataFrame(sessions)
-print(f"   Generated {len(df)} sessions")
-print(f"   Lap time range: {df['fastest_time'].min():.3f}s - {df['fastest_time'].max():.3f}s")
+# Step 2: Run full AI Race Engineer workflow (all agents)
+print("[2/5] Running AI Race Engineer Workflow...")
 print()
 
-# Step 2: Run analysis agent
-print("[2/5] Running Data Scientist Agent...")
-print()
+from race_engineer import app
 
-from race_engineer import analysis_agent, engineer_agent
-
-state = {
+initial_state = {
     'raw_setup_data': df,
+    'driver_feedback': driver_feedback,
+    'data_quality_decision': None,
+    'analysis_strategy': None,
+    'selected_features': None,
     'analysis': None,
     'recommendation': None,
     'error': None
 }
 
-analysis_result = analysis_agent(state)
+# Run the full LangGraph workflow (Telemetry Chief → Data Scientist → Crew Chief)
+state = app.invoke(initial_state)
 
-if 'error' in analysis_result and analysis_result['error']:
-    print(f"   [ERROR] {analysis_result['error']}")
+if 'error' in state and state['error']:
+    print(f"   [ERROR] {state['error']}")
     sys.exit(1)
 
-state.update(analysis_result)
 print()
 
-# Step 3: Run engineer agent
-print("[3/5] Running Crew Chief Agent...")
-print()
-
-engineer_result = engineer_agent(state)
-
-if 'error' in engineer_result and engineer_result['error']:
-    print(f"   [ERROR] {engineer_result['error']}")
-    sys.exit(1)
-
-state.update(engineer_result)
-print()
-
-# Step 4: Save results
-print("[4/5] Saving results...")
+# Step 3: Save results
+print("[3/6] Saving results...")
 
 results = {
+    'data_source': 'real_csv_data' if using_real_data else 'mock_data',
     'recommendation': state.get('recommendation', 'No recommendation'),
     'analysis': state.get('analysis', {}),
     'best_time': float(df['fastest_time'].min()),
-    'baseline_time': 15.543,
-    'improvement': 15.543 - float(df['fastest_time'].min()),
+    'baseline_time': 15.543 if not using_real_data else float(df['fastest_time'].max()),
+    'improvement': (15.543 if not using_real_data else float(df['fastest_time'].max())) - float(df['fastest_time'].min()),
     'num_sessions': len(df)
 }
 
@@ -120,8 +159,8 @@ with open(output_path, 'w') as f:
 print(f"   Results saved to: {output_path}")
 print()
 
-# Step 5: Display summary
-print("[5/5] Results Summary")
+# Step 4: Display summary
+print("[4/6] Results Summary")
 print("="*70)
 print()
 print("CREW CHIEF RECOMMENDATION:")
@@ -145,8 +184,9 @@ print(f"   Best AI time:   {df['fastest_time'].min():.3f}s")
 print(f"   Improvement:    {15.543 - df['fastest_time'].min():.3f}s")
 print()
 
+# Step 5: Demo complete
 print("="*70)
-print("  DEMO COMPLETE!")
+print("  [5/6] DEMO COMPLETE!")
 print("="*70)
 print()
 print("Next steps:")

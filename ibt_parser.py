@@ -59,6 +59,7 @@ class IBTParser:
     
     def _parse_ibt_native(self, filepath: Path) -> pd.DataFrame:
         """Parse using pyirsdk library (if available)"""
+        filepath = Path(filepath) if not isinstance(filepath, Path) else filepath
         print(f"   > Parsing real .ibt file: {filepath.name}")
         try:
             # Open the .ibt file
@@ -90,7 +91,7 @@ class IBTParser:
         Generate realistic mock telemetry data for demo purposes
         This simulates what real Bristol truck telemetry would look like
         """
-        
+        filepath = Path(filepath) if not isinstance(filepath, Path) else filepath
         print(f"   > Generating MOCK telemetry for demo (simulating {filepath.name})")
         
         # (Rest of the mock data generation code is identical)
