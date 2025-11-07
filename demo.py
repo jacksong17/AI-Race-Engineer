@@ -1,6 +1,6 @@
 """
-Simplified Bristol AI Race Engineer Demo
-Runs the core AI analysis without visualizations
+Bristol AI Race Engineer Demo
+Unified interface with intelligent routing and concise output
 """
 
 import sys
@@ -8,7 +8,10 @@ from pathlib import Path
 import pandas as pd
 import json
 import numpy as np
+import io
+from contextlib import redirect_stdout
 from csv_data_loader import CSVDataLoader
+from input_router import InputRouter, AnalysisRequest
 
 
 def generate_mock_data():
@@ -59,137 +62,187 @@ def generate_mock_data():
     return pd.DataFrame(sessions)
 
 
+def load_data_silent():
+    """Load data without verbose output"""
+    loader = CSVDataLoader()
+    df = loader.load_data()
+
+    if df is not None:
+        df = loader.prepare_for_ai_analysis(df)
+        return df, True
+    else:
+        return generate_mock_data(), False
+
+
+def run_analysis_silent(df: pd.DataFrame, driver_feedback_dict: dict) -> dict:
+    """Run AI analysis workflow silently in background"""
+    from race_engineer import app
+
+    initial_state = {
+        'raw_setup_data': df,
+        'driver_feedback': driver_feedback_dict,
+        'data_quality_decision': None,
+        'analysis_strategy': None,
+        'selected_features': None,
+        'analysis': None,
+        'recommendation': None,
+        'error': None
+    }
+
+    # Capture all verbose output from agents
+    captured_output = io.StringIO()
+    with redirect_stdout(captured_output):
+        state = app.invoke(initial_state)
+
+    return state
+
+
+def format_output(state: dict, df: pd.DataFrame, request: AnalysisRequest,
+                  using_real_data: bool, verbose: bool = False) -> str:
+    """Format output - concise by default, detailed if requested"""
+
+    output_lines = []
+
+    # Header
+    output_lines.append("=" * 60)
+    output_lines.append("AI RACE ENGINEER")
+    output_lines.append("=" * 60)
+    output_lines.append("")
+
+    # Driver feedback summary (if present)
+    if request.driver_feedback:
+        fb = request.driver_feedback
+        output_lines.append(f"🎧 Driver Feedback: {fb.complaint.replace('_', ' ').title()}")
+        output_lines.append(f"   {fb.description}")
+        output_lines.append("")
+
+    # Primary recommendation
+    recommendation = state.get('recommendation', 'No recommendation available')
+    output_lines.append("💡 RECOMMENDATION:")
+    output_lines.append(f"   {recommendation}")
+    output_lines.append("")
+
+    # Top 3 impacts (concise) or Top 5 (verbose)
+    analysis = state.get('analysis', {})
+    if analysis:
+        all_impacts = analysis.get('all_impacts', {})
+        if all_impacts:
+            sorted_impacts = sorted(all_impacts.items(), key=lambda x: abs(x[1]), reverse=True)
+            num_to_show = 5 if verbose else 3
+
+            output_lines.append("📊 KEY PARAMETERS:")
+            for param, impact in sorted_impacts[:num_to_show]:
+                direction = "↓" if impact > 0 else "↑"
+                action = "Reduce" if impact > 0 else "Increase"
+                output_lines.append(f"   {direction} {param:20s}  {action:8s}  ({impact:+.3f}s)")
+            output_lines.append("")
+
+    # Performance summary
+    best_time = float(df['fastest_time'].min())
+    baseline_time = float(df['fastest_time'].max())
+    improvement = baseline_time - best_time
+
+    output_lines.append("⚡ PERFORMANCE:")
+    output_lines.append(f"   Current Best:  {best_time:.3f}s")
+    output_lines.append(f"   Potential:     {baseline_time - improvement - 0.050:.3f}s  (↓{improvement + 0.050:.3f}s)")
+    output_lines.append("")
+
+    # Additional info if verbose
+    if verbose:
+        data_source = "Real telemetry" if using_real_data else "Mock demo data"
+        output_lines.append(f"📁 Data: {data_source} ({len(df)} sessions)")
+        output_lines.append("")
+
+    output_lines.append("=" * 60)
+
+    return "\n".join(output_lines)
+
+
 # ===== MAIN EXECUTION =====
 
-print("="*70)
-print("  BRISTOL AI RACE ENGINEER - SIMPLIFIED DEMO")
-print("="*70)
-print()
+def run_demo(user_input: str = None, verbose: bool = False):
+    """
+    Run demo with unified interface
 
-# Step 1: Load real data or generate mock data
-print("[1/5] Loading training data...")
-print()
+    Args:
+        user_input: Optional user input with driver feedback
+        verbose: Show detailed output
+    """
 
-# Try to load real CSV data first
-loader = CSVDataLoader()
-df = loader.load_data()
+    # Default example if no input provided
+    if user_input is None:
+        user_input = "The car feels really loose coming off corners in turns 1 and 2. The rear end wants to come around when I get on the throttle."
 
-if df is not None:
-    print("✓ Using REAL lap data from CSV")
-    df = loader.prepare_for_ai_analysis(df)
-    stats = loader.get_summary_statistics(df)
-    print(f"  Sessions: {stats.get('num_sessions', 'N/A')}")
-    print(f"  Total laps: {stats['total_laps']}")
-    print(f"  Best lap: {stats['best_lap_time']:.3f}s")
-    print(f"  Avg lap: {stats['average_lap_time']:.3f}s")
-    using_real_data = True
-else:
-    print("⚠️  No real data found - Using mock data for demo")
-    print("   To use real data: Export .ibt files to CSV")
-    print("   See REAL_DATA_ANALYSIS.md for instructions")
-    print()
-    using_real_data = False
+    # Parse input using intelligent router
+    router = InputRouter()
+    request = router.parse_input(user_input)
 
-    # Generate mock data for demonstration
-    df = generate_mock_data()
-    print(f"   Generated {len(df)} sessions")
-    print(f"   Lap time range: {df['fastest_time'].min():.3f}s - {df['fastest_time'].max():.3f}s")
-    print()
+    # Override verbosity if requested
+    if verbose:
+        request.verbosity = 'detailed'
 
-# Step 1.5: Gather driver feedback
-print("[1.5/5] Driver Feedback Session...")
-print()
-print("🏁 DRIVER DEBRIEF:")
-print("   Driver: 'The car feels a bit loose coming off the corners.'")
-print("   Driver: 'I'm fighting oversteer in turns 1 and 2, especially on exit.'")
-print("   Driver: 'Rear end wants to come around when I get on the throttle.'")
-print()
+    # Load data silently
+    df, using_real_data = load_data_silent()
 
-# Driver feedback for AI processing
-driver_feedback = {
-    'complaint': 'loose_oversteer',
-    'description': 'Car feels loose off corners, fighting oversteer in turns 1-2, rear end unstable on throttle',
-    'severity': 'moderate',
-    'phase': 'corner_exit'
-}
+    # Convert driver feedback to dict format
+    if request.driver_feedback:
+        driver_feedback_dict = router.create_driver_feedback_dict(request.driver_feedback)
+    else:
+        # Use neutral default if no driver feedback detected
+        driver_feedback_dict = {
+            'complaint': 'general_handling',
+            'description': 'General setup optimization',
+            'severity': 'minor',
+            'phase': 'general'
+        }
 
-# Step 2: Run full AI Race Engineer workflow (all agents)
-print("[2/5] Running AI Race Engineer Workflow...")
-print()
+    # Show processing indicator
+    print("\n🔧 Analyzing setup data and driver feedback...\n")
 
-from race_engineer import app
+    # Run analysis silently in background
+    state = run_analysis_silent(df, driver_feedback_dict)
 
-initial_state = {
-    'raw_setup_data': df,
-    'driver_feedback': driver_feedback,
-    'data_quality_decision': None,
-    'analysis_strategy': None,
-    'selected_features': None,
-    'analysis': None,
-    'recommendation': None,
-    'error': None
-}
+    # Check for errors
+    if 'error' in state and state['error']:
+        print(f"❌ Error: {state['error']}")
+        sys.exit(1)
 
-# Run the full LangGraph workflow (Telemetry Chief → Data Scientist → Crew Chief)
-state = app.invoke(initial_state)
+    # Format and display output
+    output = format_output(state, df, request, using_real_data,
+                          verbose=(request.verbosity == 'detailed'))
+    print(output)
 
-if 'error' in state and state['error']:
-    print(f"   [ERROR] {state['error']}")
-    sys.exit(1)
+    # Save results
+    results = {
+        'user_input': user_input,
+        'analysis_type': request.analysis_type,
+        'focus_areas': request.focus_areas,
+        'data_source': 'real_csv_data' if using_real_data else 'mock_data',
+        'recommendation': state.get('recommendation', 'No recommendation'),
+        'analysis': state.get('analysis', {}),
+        'best_time': float(df['fastest_time'].min()),
+        'baseline_time': float(df['fastest_time'].max()),
+        'improvement': float(df['fastest_time'].max()) - float(df['fastest_time'].min()),
+        'num_sessions': len(df)
+    }
 
-print()
+    output_path = Path("output/demo_results.json")
+    output_path.parent.mkdir(exist_ok=True)
+    with open(output_path, 'w') as f:
+        json.dump(results, f, indent=2, default=str)
 
-# Step 3: Save results
-print("[3/6] Saving results...")
 
-results = {
-    'data_source': 'real_csv_data' if using_real_data else 'mock_data',
-    'recommendation': state.get('recommendation', 'No recommendation'),
-    'analysis': state.get('analysis', {}),
-    'best_time': float(df['fastest_time'].min()),
-    'baseline_time': 15.543 if not using_real_data else float(df['fastest_time'].max()),
-    'improvement': (15.543 if not using_real_data else float(df['fastest_time'].max())) - float(df['fastest_time'].min()),
-    'num_sessions': len(df)
-}
+if __name__ == '__main__':
+    # Check for command line arguments
+    verbose = '--verbose' in sys.argv or '-v' in sys.argv
 
-output_path = Path("output/demo_results.json")
-with open(output_path, 'w') as f:
-    json.dump(results, f, indent=2, default=str)
+    # Remove flags from argv
+    args = [arg for arg in sys.argv[1:] if arg not in ['--verbose', '-v']]
 
-print(f"   Results saved to: {output_path}")
-print()
-
-# Step 4: Display summary
-print("[4/6] Results Summary")
-print("="*70)
-print()
-print("CREW CHIEF RECOMMENDATION:")
-print(f"   {state.get('recommendation', 'No recommendation')}")
-print()
-
-analysis = state.get('analysis', {})
-if analysis:
-    print("KEY FINDINGS (Impact on Lap Time):")
-    all_impacts = analysis.get('all_impacts', {})
-    sorted_impacts = sorted(all_impacts.items(), key=lambda x: abs(x[1]), reverse=True)
-
-    for param, impact in sorted_impacts[:5]:
-        direction = "REDUCE" if impact > 0 else "INCREASE"
-        print(f"   {param:30s}: {impact:+.3f}  [{direction}]")
-
-print()
-print("PERFORMANCE IMPROVEMENT:")
-print(f"   Baseline time:  15.543s")
-print(f"   Best AI time:   {df['fastest_time'].min():.3f}s")
-print(f"   Improvement:    {15.543 - df['fastest_time'].min():.3f}s")
-print()
-
-# Step 5: Demo complete
-print("="*70)
-print("  [5/6] DEMO COMPLETE!")
-print("="*70)
-print()
-print("Next steps:")
-print("1. Review results in output/demo_results.json")
-print("2. Run 'python create_visualizations.py' to generate charts")
-print("3. Apply recommendations on track and validate")
+    if args:
+        # User provided input as command line argument
+        user_input = ' '.join(args)
+        run_demo(user_input, verbose)
+    else:
+        # Run with default example
+        run_demo(verbose=verbose)

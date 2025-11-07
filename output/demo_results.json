@@ -1,4 +1,11 @@
 {
+  "user_input": "The car feels really loose coming off corners in turns 1 and 2. The rear end wants to come around when I get on the throttle.",
+  "analysis_type": "setup_optimization",
+  "focus_areas": [
+    "rear_grip",
+    "tire_pressure_rear",
+    "rear_springs"
+  ],
   "data_source": "real_csv_data",
   "recommendation": "STRONG RECOMMENDATION: Reduce tire_psi_rr (strong positive correlation: 0.551)\n   Expected effect: Significantly faster lap times\n   \ud83c\udfa7 Addresses driver complaint: Oversteer (loose rear end)",
   "analysis": {
