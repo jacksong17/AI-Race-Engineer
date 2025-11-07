@@ -32,8 +32,8 @@ def generate_llm_explanation(
 
         client = anthropic.Anthropic(api_key=api_key)
 
-        # Build prompt for LLM
-        prompt = f"""You are an experienced NASCAR crew chief explaining a technical decision to the team.
+        # Build prompt for LLM - structured bullet format
+        prompt = f"""You are an experienced NASCAR crew chief. Provide a structured explanation of this setup decision.
 
 Context:
 - Driver complaint: {decision_context.get('driver_complaint', 'None')}
@@ -42,12 +42,14 @@ Context:
 - Decision made: {decision_context.get('decision_type', 'Unknown')}
 - Recommended parameter: {decision_context.get('recommended_param', 'Unknown')} (impact: {decision_context.get('recommended_impact', 0):.3f})
 
-Write a brief (2-3 sentences) explanation of why this decision was made. Focus on:
-1. Whether data validated or contradicted driver feedback
-2. The reasoning behind the recommendation
-3. What the team should expect from this change
+Provide your explanation in EXACTLY this format (4 bullet points, concise):
 
-Be conversational but technical. Use racing terminology."""
+• SITUATION: [1 sentence describing driver vs data alignment]
+• DECISION: [1 sentence on what we're changing and why]
+• EXPECTED IMPACT: [1 sentence on handling/lap time effect]
+• NEXT STEPS: [1 sentence on validation approach]
+
+Keep each bullet to ONE sentence. Be direct and technical."""
 
         message = client.messages.create(
             model=model,
@@ -69,34 +71,40 @@ Be conversational but technical. Use racing terminology."""
 
 
 def _template_explanation(decision_context: Dict) -> str:
-    """Fallback template-based explanation"""
+    """Fallback template-based explanation in structured bullet format"""
 
     decision_type = decision_context.get('decision_type', 'data_only')
     param = decision_context.get('recommended_param', 'Unknown')
     driver_complaint = decision_context.get('driver_complaint', 'None')
+    impact = decision_context.get('recommended_impact', 0)
 
     if decision_type == "driver_validated_by_data":
         return (
-            f"The driver reported '{driver_complaint}' and our data analysis confirms this. "
-            f"The telemetry shows {param} is the primary factor, validating the driver's intuition. "
-            f"This is a high-confidence recommendation backed by both feel and data."
+            f"• SITUATION: Driver feedback ('{driver_complaint}') validated by telemetry data\n"
+            f"   • DECISION: Adjust {param} - both driver feel and data point to same root cause\n"
+            f"   • EXPECTED IMPACT: High confidence change, should improve lap times and driver confidence\n"
+            f"   • NEXT STEPS: Make adjustment, run 3-5 laps, confirm driver feel matches lap time improvement"
         )
     elif decision_type == "driver_feedback_prioritized":
         return (
-            f"While the data suggests a different parameter, we're trusting the driver's feedback about '{driver_complaint}'. "
-            f"Drivers feel G-forces and steering response that telemetry can't capture. "
-            f"We'll test {param} first, then circle back to the data recommendation if needed."
+            f"• SITUATION: Data suggests different parameter, but prioritizing driver's physical feedback\n"
+            f"   • DECISION: Adjust {param} first - driver feels G-forces telemetry can't capture\n"
+            f"   • EXPECTED IMPACT: Should address '{driver_complaint}' - may need data-backed adjustment after\n"
+            f"   • NEXT STEPS: Test driver-recommended change first, monitor telemetry, adjust if needed"
         )
     elif decision_type == "data_prioritized_no_alternatives":
         return (
-            f"The driver reported '{driver_complaint}' but we don't see strong correlations in those areas. "
-            f"The data clearly points to {param} as the primary factor. "
-            f"We're recommending the data-driven approach while noting the driver's concerns."
+            f"• SITUATION: Driver reported '{driver_complaint}' but data points to different root cause\n"
+            f"   • DECISION: Adjust {param} per data analysis (impact: {impact:+.3f})\n"
+            f"   • EXPECTED IMPACT: Should improve lap times, may indirectly address driver concern\n"
+            f"   • NEXT STEPS: Make data-driven adjustment, gather driver feedback on feel vs lap time"
         )
     else:
         return (
-            f"Based purely on data analysis, {param} shows the strongest correlation with lap time. "
-            f"This is a data-driven recommendation to optimize performance."
+            f"• SITUATION: No driver feedback - pure data-driven optimization\n"
+            f"   • DECISION: Adjust {param} based on correlation analysis (impact: {impact:+.3f})\n"
+            f"   • EXPECTED IMPACT: Statistically significant lap time improvement expected\n"
+            f"   • NEXT STEPS: Apply change, validate with 5+ laps, monitor consistency"
         )
 
 

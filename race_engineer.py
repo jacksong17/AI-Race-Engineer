@@ -26,6 +26,43 @@ class RaceEngineerState(TypedDict):
     recommendation: Optional[str]
     error: Optional[str]
 
+
+# State visibility helper
+def _print_state_transition(from_agent: str, to_agent: str, state: RaceEngineerState):
+    """Display state being passed between agents for demo visibility"""
+    print(f"\n{'='*70}")
+    print(f"  STATE HANDOFF: {from_agent} → {to_agent}")
+    print(f"{'='*70}")
+
+    # Show relevant state fields (exclude raw data)
+    if state.get('driver_diagnosis'):
+        diag = state['driver_diagnosis']
+        print(f"   driver_diagnosis:")
+        print(f"      diagnosis: {diag.get('diagnosis', 'N/A')}")
+        print(f"      priority_features: {diag.get('priority_features', [])}")
+
+    if state.get('data_quality_decision'):
+        print(f"   data_quality_decision: {state['data_quality_decision']}")
+
+    if state.get('analysis_strategy'):
+        print(f"   analysis_strategy: {state['analysis_strategy']}")
+
+    if state.get('selected_features'):
+        print(f"   selected_features: {state['selected_features']}")
+
+    if state.get('analysis'):
+        analysis = state['analysis']
+        print(f"   analysis:")
+        print(f"      method: {analysis.get('method', 'N/A')}")
+        if 'most_impactful' in analysis:
+            param, impact = analysis['most_impactful']
+            print(f"      most_impactful: {param} ({impact:+.3f})")
+
+    if state.get('error'):
+        print(f"   error: {state['error']}")
+
+    print(f"{'='*70}\n")
+
 # ========== AGENT 1: TELEMETRY CHIEF (Data Quality + Driver Feedback) ==========
 def telemetry_agent(state: RaceEngineerState):
     """
@@ -134,11 +171,18 @@ def telemetry_agent(state: RaceEngineerState):
 
     print(f"   [OK] Data quality check passed: {len(df_clean)} sessions ready for analysis")
 
-    return {
+    # Prepare state update
+    updated_state = {
         "raw_setup_data": df_clean,
         "driver_diagnosis": driver_diagnosis,
         "data_quality_decision": decision
     }
+
+    # Merge with existing state for visibility
+    merged_state = {**state, **updated_state}
+    _print_state_transition("AGENT 1: Telemetry Chief", "AGENT 2: Data Scientist", merged_state)
+
+    return updated_state
 
 # ========== AGENT 2: DATA SCIENTIST (Feature Selection + Model Strategy) ==========
 def analysis_agent(state: RaceEngineerState):
@@ -289,11 +333,18 @@ def analysis_agent(state: RaceEngineerState):
     except Exception as e:
         return {"error": f"Analysis failed: {str(e)}"}
 
-    return {
+    # Prepare state update
+    updated_state = {
         "analysis": analysis_results,
         "analysis_strategy": strategy,
         "selected_features": selected_features
     }
+
+    # Merge with existing state for visibility
+    merged_state = {**state, **updated_state}
+    _print_state_transition("AGENT 2: Data Scientist", "AGENT 3: Crew Chief", merged_state)
+
+    return updated_state
 
 # ========== AGENT 3: CREW CHIEF (Recommendation Synthesis) ==========
 def engineer_agent(state: RaceEngineerState):
