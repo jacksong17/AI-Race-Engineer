@@ -144,9 +144,9 @@ def feature_selection_agent(state: RaceEngineerState) -> Dict:
         print(f"       {feat:25s} (variance: {var:.3f})")
 
     if rejected:
-        print(f"   ✗ Rejected {len(rejected)} features:")
+        print(f"   [X] Rejected {len(rejected)} features:")
         for feat, reason in rejected[:3]:  # Show first 3
-            print(f"      ✗ {feat:25s} ({reason})")
+            print(f"      [X] {feat:25s} ({reason})")
 
     if len(selected) < 2:
         return {'error': f'Not enough variable features ({len(selected)} found)'}

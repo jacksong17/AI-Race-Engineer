@@ -367,7 +367,7 @@ def test_outcome_validator():
         matches = result['outcome'] == scenario['expected'] or (
             result['outcome'] in ['inconclusive', scenario['expected']]
         )
-        status = "✓ PASS" if matches else "✗ FAIL"
+        status = "[PASS]" if matches else "[FAIL]"
         print(f"\n   {status} (expected: {scenario['expected']}, got: {result['outcome']})")
 
         print()

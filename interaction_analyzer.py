@@ -377,7 +377,7 @@ def test_interaction_analyzer():
     print()
 
     if result['has_significant_interactions']:
-        print(f"✓ Significant interactions detected!")
+        print(f"[OK] Significant interactions detected!")
         print(f"   Model improvement: {result['model_improvement']:+.3f} R² ({result['improvement_pct']:+.1f}%)")
         print()
         print("Top interactions:")
@@ -387,7 +387,7 @@ def test_interaction_analyzer():
             print(f"   Type: {'SYNERGISTIC' if inter['synergistic'] else 'ANTAGONISTIC'}")
             print(f"   {inter['interpretation']}")
     else:
-        print("✗ No significant interactions detected")
+        print("[X] No significant interactions detected")
         print(f"   Model improvement: {result['model_improvement']:+.3f} R² (< 10% threshold)")
 
     print()
