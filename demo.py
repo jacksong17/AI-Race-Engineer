@@ -12,6 +12,15 @@ from datetime import datetime
 from csv_data_loader import CSVDataLoader
 from session_manager import SessionManager
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # python-dotenv not installed, .env won't be loaded automatically
+    # Environment variables must be set manually
+    pass
+
 
 def generate_mock_data():
     """Generate mock Bristol testing data for demo purposes"""
