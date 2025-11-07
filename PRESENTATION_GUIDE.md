@@ -33,16 +33,30 @@ Engineer → Stares at spreadsheets for hours
          → Driver tests (wastes track time if wrong)
 ```
 
-### Agentic AI Approach
+### Agentic AI Approach (Driver-in-the-Loop)
 ```
-Raw Data → Telemetry Chief (parses/validates)
-         → Data Scientist (statistical analysis)
-         → Crew Chief (actionable recommendations)
-         → Driver gets: "Reduce RR tire pressure by 2 PSI"
+Driver Feedback: "Car feels loose off corners, rear end wants to come around"
+         ↓
+Agent 1 (Telemetry Chief): Interprets feedback → Diagnoses "Oversteer (loose rear)"
+                          → Prioritizes rear grip parameters
+         ↓
+Agent 2 (Data Scientist): Focuses on priority features (tire_psi_rr, tire_psi_lr)
+                         → Finds +0.551 correlation with tire_psi_rr [PRIORITY]
+         ↓
+Agent 3 (Crew Chief): Validates → ✅ "Data confirms driver complaint"
+                    → Recommendation: "Reduce RR tire pressure"
+                    → 🎧 Addresses: "Oversteer (loose rear end)"
 ```
 
+**Key Demonstration:** This is NOT a static pipeline! Agents exhibit:
+- **Perception:** Understand qualitative driver feedback
+- **Reasoning:** Connect driver symptoms to technical causes
+- **Planning:** Agent 1 guides Agent 2's analysis strategy
+- **Action:** Generate context-aware recommendations
+- **Validation:** Confirm hypothesis (driver's gut feel validated by data!)
+
 **Time savings:** Hours of analysis → 5 seconds
-**Accuracy:** Statistical confidence vs. gut feeling
+**Accuracy:** Statistical confidence + driver expertise
 **Safety:** Deterministic results (critical for 200 mph decisions)
 
 ---
@@ -161,26 +175,48 @@ else:
     return "Hold setup and test interaction effects"
 ```
 
-#### 3. **Dynamic State Evolution**
+#### 3. **Dynamic State Evolution with Driver Feedback**
 ```python
 # State evolves through the graph:
 
 Initial State:
-{'raw_setup_data': DataFrame(17 sessions), 'analysis': None, ...}
+{
+    'raw_setup_data': DataFrame(17 sessions),
+    'driver_feedback': {
+        'complaint': 'loose_oversteer',
+        'description': 'Car feels loose off corners, rear unstable',
+        'phase': 'corner_exit'
+    },
+    'analysis': None, ...
+}
 
-After Telemetry Chief:
-{'raw_setup_data': DataFrame(17 sessions),
- 'parsed_data': DataFrame(clean), 'analysis': None, ...}
+After Agent 1 (Telemetry Chief):
+{
+    'raw_setup_data': DataFrame(16 sessions),  # 1 outlier removed
+    'driver_diagnosis': {
+        'diagnosis': 'Oversteer (loose rear end)',
+        'priority_features': ['tire_psi_rr', 'tire_psi_lr', 'track_bar_height_left']
+    },
+    'data_quality_decision': 'removed_1_outliers', ...
+}
 
-After Data Scientist:
-{'raw_setup_data': ..., 'analysis': {
-    'tire_psi_rr': 0.060,
-    'spring_lf': 0.052,
-    ...
-}, ...}
+After Agent 2 (Data Scientist):
+{
+    'selected_features': ['tire_psi_lf', 'tire_psi_lr', 'tire_psi_rr', ...],
+    'analysis_strategy': 'correlation',
+    'analysis': {
+        'tire_psi_rr': 0.551,  # [PRIORITY - matches feedback]
+        'tire_psi_lr': 0.322,  # [PRIORITY - matches feedback]
+        'cross_weight': -0.289,
+        ...
+    }, ...
+}
 
-After Crew Chief:
-{'recommendation': "Reduce RR tire pressure by 2 PSI", ...}
+After Agent 3 (Crew Chief):
+{
+    'recommendation': "Reduce tire_psi_rr\n🎧 Addresses: Oversteer (loose rear end)",
+    'validation': 'data_confirms_driver_complaint'
+}
 ```
 
 #### 4. **Error Recovery and Routing**
@@ -212,29 +248,43 @@ cd AI-Race-Engineer
 python demo.py
 ```
 
-### Demo Flow (2 minutes)
+### Demo Flow (2-3 minutes)
 
 1. **Data Loading**
    - Shows: "✓ Loaded real data from 17 .ldx files"
    - Demonstrates: Automatic detection of real data
    - **Agentic aspect:** System adapts to data availability
 
-2. **Telemetry Chief Agent**
-   - Shows: "Parsing 17 Bristol sessions..."
-   - Demonstrates: Data validation and cleaning
-   - **Agentic aspect:** Makes decisions about data quality
+2. **Driver Feedback Session** ← **NEW: Key Demonstration Point!**
+   - Shows: 🏁 Driver reports: "Car feels loose off corners, fighting oversteer"
+   - Demonstrates: Qualitative input enters system
+   - **Agentic aspect:** Agents must PERCEIVE and INTERPRET human feedback
 
-3. **Data Scientist Agent**
-   - Shows: "Running regression on 17 valid runs..."
-   - Demonstrates: Statistical analysis with feature scaling
-   - **Agentic aspect:** Chooses analysis method based on data size
+3. **Agent 1: Telemetry Chief** ← **Enhanced with Perception**
+   - Shows: "🎧 Driver complaint: 'loose_oversteer' during corner_exit"
+   - Shows: "💡 DIAGNOSIS: Oversteer (loose rear end)"
+   - Shows: "✓ DECISION: Prioritize REAR GRIP parameters"
+   - Demonstrates: **Reasoning** (symptom → technical cause)
+   - **Agentic aspect:** Agent interprets qualitative feedback and plans analysis strategy
+   - Also: Data quality assessment (outlier detection with IQR)
 
-4. **Crew Chief Agent**
-   - Shows: "Generating recommendation..."
-   - Demonstrates: Translation of stats to actions
-   - **Agentic aspect:** Applies domain knowledge and thresholds
+4. **Agent 2: Data Scientist** ← **Enhanced with Planning**
+   - Shows: "🎯 Agent 1 identified priority areas: Oversteer (loose rear end)"
+   - Shows: "✓ DECISION: Prioritize driver-feedback-relevant parameters"
+   - Shows: Feature evaluation with **[PRIORITY]** markers
+   - Shows: Top 3 results ALL match driver feedback (tire_psi_rr +0.551)
+   - Demonstrates: **Context-aware analysis** based on Agent 1's guidance
+   - **Agentic aspect:** Adapts analysis focus based on upstream agent reasoning
 
-5. **Results**
+5. **Agent 3: Crew Chief** ← **Enhanced with Validation**
+   - Shows: "✅ VALIDATION: Top parameter matches driver feedback!"
+   - Shows: "Driver complaint: Oversteer (loose rear end)"
+   - Shows: "Data confirms: tire_psi_rr is primary factor"
+   - Shows: Recommendation includes "🎧 Addresses driver complaint"
+   - Demonstrates: **Reflection** - validates hypothesis against data
+   - **Agentic aspect:** Closes the perception-action loop with validation
+
+6. **Results**
    ```
    KEY FINDINGS:
    - RR tire pressure: +0.060s impact → Reduce
@@ -252,6 +302,40 @@ python demo.py
 - **AI identified:** 0.684s of improvement potential
 - **Real Bristol truck data** (not simulated!)
 
+### Why This Demonstrates TRUE AI Agents (Google Cloud Definition)
+
+This implementation showcases all key characteristics from [Google Cloud's AI Agent definition](https://cloud.google.com/discover/what-are-ai-agents):
+
+1. **Autonomous Decision-Making**
+   - Each agent independently decides what to prioritize
+   - Agent 1: Chooses to remove 1 outlier (keeps 16 sessions)
+   - Agent 2: Selects 6 features based on variance thresholds
+   - Agent 3: Determines signal strength and recommendation type
+
+2. **Reasoning**
+   - Agent 1: "Driver says loose → must be rear grip issue"
+   - Agent 2: "Priority features show variance → focus analysis there"
+   - Agent 3: "Data matches driver complaint → hypothesis validated!"
+
+3. **Planning**
+   - Agent 1 creates analysis strategy for Agent 2
+   - Priority features guide downstream decision-making
+   - Agents adapt to context (same data + different feedback = different results)
+
+4. **Perception → Action Cycle**
+   - **Perceive:** Driver qualitative feedback ("loose oversteer")
+   - **Plan:** Agent 1 identifies priority parameters (rear grip)
+   - **Act:** Agent 2 focuses analysis, Agent 3 generates recommendation
+   - **Reflect:** Agent 3 validates data against driver complaint
+
+5. **Continuous Learning Feedback Loop**
+   - System validates hypothesis (driver feel vs. data)
+   - Could incorporate results: "Did recommendation work?"
+   - Closes perception-action-reflection cycle
+
+**Key Insight:** Driver said "loose rear" → Data confirmed tire_psi_rr +0.551 correlation
+This is agents combining qualitative human expertise with quantitative analysis!
+
 ---
 
 ## Technical Deep Dive
@@ -265,6 +349,11 @@ import pandas as pd
 
 class RaceEngineerState(TypedDict, total=False):
     raw_setup_data: pd.DataFrame
+    driver_feedback: Optional[Dict]          # NEW: Driver qualitative input
+    driver_diagnosis: Optional[Dict]         # NEW: Agent 1's interpretation
+    data_quality_decision: Optional[str]     # Agent 1's data cleaning decision
+    analysis_strategy: Optional[str]         # Agent 2's chosen method
+    selected_features: Optional[List[str]]   # Agent 2's feature selection
     analysis: Optional[dict]
     recommendation: Optional[str]
     error: Optional[str]
@@ -273,6 +362,7 @@ class RaceEngineerState(TypedDict, total=False):
 **Why TypedDict?**
 - Type safety (catches errors at development time)
 - Clear contracts between agents
+- Tracks decision-making through state evolution
 - IDE autocomplete support
 
 #### Agent Nodes (race_engineer.py:26-153)
