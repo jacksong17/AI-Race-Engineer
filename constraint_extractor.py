@@ -54,14 +54,16 @@ def _extract_constraints_with_llm(raw_feedback: str) -> Optional[Dict]:
 
         client = anthropic.Anthropic(api_key=api_key)
 
-        prompt = f"""Analyze this driver feedback for setup constraints and limits:
+        prompt = f"""Analyze this driver feedback for EXPLICIT setup constraints and limits:
 
 "{raw_feedback}"
 
-Extract any mentions of:
-1. Parameters at their limit (e.g., "tire pressure as low as allowed")
-2. Parameters already adjusted (e.g., "we already tried increasing springs")
-3. Parameters that cannot be changed (e.g., "can't adjust that further")
+IMPORTANT: Only extract constraints if EXPLICITLY stated by the driver. Do NOT infer or assume constraints.
+
+Extract ONLY if driver explicitly mentions:
+1. Parameters at their limit (e.g., "tire pressure as low as allowed", "can't go any lower on RR tire")
+2. Parameters already adjusted (e.g., "we already tried increasing springs", "already raised cross weight last run")
+3. Parameters that cannot be changed (e.g., "can't adjust track bar", "springs are locked in")
 
 Respond with ONLY a JSON object:
 
@@ -81,7 +83,14 @@ spring_lf, spring_rf, spring_lr, spring_rr, arb_front, arb_rear
 
 Limit types: "at_minimum", "at_maximum", "near_limit", "optimal"
 
-If no constraints found, return empty arrays. Return ONLY the JSON:"""
+If NO EXPLICIT constraints mentioned, return empty arrays for all fields.
+
+Examples:
+- "Car feels loose" → {{"parameter_limits": [], "already_tried": [], "cannot_adjust": [], "raw_constraints": []}}
+- "Car feels bad, turtles drive faster" → {{"parameter_limits": [], "already_tried": [], "cannot_adjust": [], "raw_constraints": []}}
+- "RR tire is as low as we can go, still loose" → {{"parameter_limits": [{{"param": "tire_psi_rr", "limit_type": "at_minimum", "reason": "as low as we can go"}}], "already_tried": [], "cannot_adjust": [], "raw_constraints": ["RR tire is as low as we can go"]}}
+
+Return ONLY the JSON:"""
 
         message = client.messages.create(
             model="claude-3-haiku-20240307",

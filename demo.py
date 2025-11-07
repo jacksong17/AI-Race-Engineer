@@ -1,5 +1,5 @@
 """
-Simplified Bristol AI Race Engineer Demo
+Bristol AI Race Engineer
 Runs the core AI analysis without visualizations
 """
 
@@ -23,7 +23,7 @@ except ImportError:
 
 
 def generate_mock_data():
-    """Generate mock Bristol testing data for demo purposes"""
+    """Generate mock Bristol testing data for testing purposes"""
     # Bristol baseline setup (realistic values)
     baseline_setup = {
         'tire_psi_lf': 28.0,
@@ -73,12 +73,12 @@ def generate_mock_data():
 # ===== MAIN EXECUTION =====
 
 print("="*70)
-print("  BRISTOL AI RACE ENGINEER - SIMPLIFIED DEMO")
+print("  BRISTOL AI RACE ENGINEER")
 print("="*70)
 print()
 
 # Step 1: Load real data or generate mock data
-print("[1/5] Loading training data...")
+print("[1/6] Loading training data...")
 print()
 
 # Try to load real CSV data first
@@ -95,20 +95,20 @@ if df is not None:
     print(f"  Avg lap: {stats['average_lap_time']:.3f}s")
     using_real_data = True
 else:
-    print("⚠️  No real data found - Using mock data for demo")
+    print("⚠️  No real data found - Using mock data for testing")
     print("   To use real data: Export .ibt files to CSV")
     print("   See REAL_DATA_ANALYSIS.md for instructions")
     print()
     using_real_data = False
 
-    # Generate mock data for demonstration
+    # Generate mock data for testing
     df = generate_mock_data()
     print(f"   Generated {len(df)} sessions")
     print(f"   Lap time range: {df['fastest_time'].min():.3f}s - {df['fastest_time'].max():.3f}s")
     print()
 
-# Step 1.25: Load session history for iterative learning
-print("[1.25/5] Loading session memory...")
+# Load session history for iterative learning
+print("   Loading session memory...")
 print()
 
 session_mgr = SessionManager()
@@ -152,17 +152,12 @@ else:
 
 print()
 
-# Step 1.4: Load setup knowledge base
-print("[1.4/5] Loading setup knowledge base...")
-print()
-
+# Load setup knowledge base (NASCAR setup manual / best practices)
 from knowledge_base_loader import load_setup_manual
-
 setup_knowledge_base = load_setup_manual()  # Will try to load PDF, fall back to defaults
-print()
 
-# Step 1.5: Gather driver feedback (INTERACTIVE)
-print("[1.5/5] Driver Feedback Session...")
+# Step 2: Gather driver feedback (INTERACTIVE)
+print("[2/6] Driver Feedback Session...")
 print()
 print("DRIVER DEBRIEF:")
 print("   (The crew chief asks the driver about the car's handling...)")
@@ -200,7 +195,7 @@ from driver_feedback_interpreter import interpret_driver_feedback_with_llm
 driver_feedback = interpret_driver_feedback_with_llm(
     raw_driver_feedback,
     llm_provider="anthropic",  # or "openai" or "mock"
-    multi_issue=False  # Use legacy single-issue format for demo
+    multi_issue=False  # Use legacy single-issue format
 )
 
 print(f"   [OK] Interpretation complete")
@@ -231,8 +226,8 @@ else:
     print(f"   [OK] No constraints detected")
 print()
 
-# Step 2: Run full AI Race Engineer workflow (all agents)
-print("[2/5] Running AI Race Engineer Workflow...")
+# Step 3: Run full AI Race Engineer workflow (all agents)
+print("[3/6] Running AI Race Engineer Workflow...")
 print()
 
 from race_engineer import app
@@ -272,8 +267,8 @@ print(f"   [SESSION] Saved to session memory: {session_id}")
 
 print()
 
-# Step 3: Save results
-print("[3/6] Saving results...")
+# Step 4: Save results
+print("[4/6] Saving results...")
 
 results = {
     'data_source': 'real_csv_data' if using_real_data else 'mock_data',
@@ -285,15 +280,15 @@ results = {
     'num_sessions': len(df)
 }
 
-output_path = Path("output/demo_results.json")
+output_path = Path("output/run_results.json")
 with open(output_path, 'w') as f:
     json.dump(results, f, indent=2, default=str)
 
 print(f"   Results saved to: {output_path}")
 print()
 
-# Step 4: Display summary
-print("[4/6] Results Summary")
+# Step 5: Display summary
+print("[5/6] Results Summary")
 print("="*70)
 print()
 print("CREW CHIEF RECOMMENDATION:")
@@ -302,13 +297,14 @@ print()
 
 analysis = state.get('analysis', {})
 if analysis:
-    print("KEY FINDINGS (Impact on Lap Time):")
+    print("KEY FINDINGS (To Go Faster):")
     all_impacts = analysis.get('all_impacts', {})
     sorted_impacts = sorted(all_impacts.items(), key=lambda x: abs(x[1]), reverse=True)
 
     for param, impact in sorted_impacts[:5]:
         direction = "REDUCE" if impact > 0 else "INCREASE"
-        print(f"   {param:30s}: {impact:+.3f}  [{direction}]")
+        impact_desc = "slower" if impact > 0 else "faster"
+        print(f"   {direction:8s} {param:25s} (impact: {abs(impact):.3f}) - currently making car {impact_desc}")
 
 print()
 print("PERFORMANCE IMPROVEMENT:")
@@ -317,12 +313,12 @@ print(f"   Best AI time:   {df['fastest_time'].min():.3f}s")
 print(f"   Improvement:    {15.543 - df['fastest_time'].min():.3f}s")
 print()
 
-# Step 5: Demo complete
+# Step 6: Run complete
 print("="*70)
-print("  [5/6] DEMO COMPLETE!")
+print("  [6/6] RUN COMPLETE!")
 print("="*70)
 print()
 print("Next steps:")
-print("1. Review results in output/demo_results.json")
+print("1. Review results in output/run_results.json")
 print("2. Run 'python create_visualizations.py' to generate charts")
 print("3. Apply recommendations on track and validate")
