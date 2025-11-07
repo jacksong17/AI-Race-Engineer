@@ -1,21 +1,20 @@
 {
   "data_source": "real_csv_data",
-  "recommendation": "No strong single-parameter impact found. 'tire_psi_rr' was closest (0.060). Hold setup and test interaction effects.",
+  "recommendation": "STRONG RECOMMENDATION: Reduce tire_psi_rr (strong positive correlation: 0.551)\n   Expected effect: Significantly faster lap times",
   "analysis": {
+    "method": "correlation",
+    "all_impacts": {
+      "tire_psi_lf": 0.005061053194984484,
+      "tire_psi_lr": 0.32167171582251725,
+      "tire_psi_rr": 0.5509354054984819,
+      "cross_weight": -0.28854912459047416,
+      "spring_lf": 0.25073016568366346,
+      "spring_rf": 0.254267185631269
+    },
     "most_impactful": [
       "tire_psi_rr",
-      0.05963084060172951
-    ],
-    "all_impacts": {
-      "tire_psi_lf": 0.017707985577435522,
-      "tire_psi_rf": 3.469446951953614e-18,
-      "tire_psi_lr": 0.04709867281462278,
-      "tire_psi_rr": 0.05963084060172951,
-      "cross_weight": 0.027481121220214823,
-      "track_bar_height_left": 0.0,
-      "spring_lf": 0.05152496082108398,
-      "spring_rf": -0.004942305209936111
-    }
+      0.5509354054984819
+    ]
   },
   "best_time": 14.859,
   "baseline_time": 15.335,
