@@ -143,6 +143,15 @@ else:
 
 print()
 
+# Step 1.4: Load setup knowledge base
+print("[1.4/5] Loading setup knowledge base...")
+print()
+
+from knowledge_base_loader import load_setup_manual
+
+setup_knowledge_base = load_setup_manual()  # Will try to load PDF, fall back to defaults
+print()
+
 # Step 1.5: Gather driver feedback (INTERACTIVE)
 print("[1.5/5] Driver Feedback Session...")
 print()
@@ -190,6 +199,28 @@ print(f"      Severity: {driver_feedback['severity']}")
 print(f"      Technical diagnosis: {driver_feedback['diagnosis']}")
 print()
 
+# Step 1.75: Extract constraints from driver feedback
+print("   [AI] Checking for setup constraints...")
+from constraint_extractor import extract_constraints, get_constraint_summary
+
+driver_constraints = extract_constraints(raw_driver_feedback, llm_provider="anthropic")
+
+if driver_constraints and any([
+    driver_constraints.get('parameter_limits'),
+    driver_constraints.get('already_tried'),
+    driver_constraints.get('cannot_adjust')
+]):
+    print(f"   [CONSTRAINTS] Found {len(driver_constraints.get('parameter_limits', []))} constraint(s):")
+    for limit in driver_constraints.get('parameter_limits', []):
+        print(f"      • {limit['param']}: {limit['limit_type']}")
+    if driver_constraints.get('already_tried'):
+        print(f"      • Already tried: {', '.join(driver_constraints['already_tried'])}")
+    if driver_constraints.get('cannot_adjust'):
+        print(f"      • Cannot adjust: {', '.join(driver_constraints['cannot_adjust'])}")
+else:
+    print(f"   [OK] No constraints detected")
+print()
+
 # Step 2: Run full AI Race Engineer workflow (all agents)
 print("[2/5] Running AI Race Engineer Workflow...")
 print()
@@ -211,7 +242,11 @@ initial_state = {
     'learning_metrics': learning_metrics,
     'previous_recommendations': [s.get('recommendation') for s in session_history[:3]] if session_history else None,
     'outcome_feedback': None,
-    'convergence_progress': learning_metrics.get('convergence_metric') if learning_metrics else None
+    'convergence_progress': learning_metrics.get('convergence_metric') if learning_metrics else None,
+    # Driver context fields (preserve all driver input)
+    'raw_driver_feedback': raw_driver_feedback,
+    'driver_constraints': driver_constraints,
+    'setup_knowledge_base': setup_knowledge_base
 }
 
 # Run the full LangGraph workflow (Telemetry Chief -> Data Scientist -> Crew Chief)

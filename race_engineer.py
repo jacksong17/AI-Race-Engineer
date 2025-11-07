@@ -34,6 +34,11 @@ class RaceEngineerState(TypedDict):
     outcome_feedback: Optional[Dict]  # User validation of recommendation
     convergence_progress: Optional[float]  # % improvement trend
 
+    # Driver Context Fields (preserve all driver input)
+    raw_driver_feedback: Optional[str]  # Original driver message (unprocessed)
+    driver_constraints: Optional[Dict]  # Extracted limits and constraints
+    setup_knowledge_base: Optional[Dict]  # Car setup manual context
+
 
 # State visibility helper
 def _print_state_transition(from_agent: str, to_agent: str, state: RaceEngineerState):
@@ -48,6 +53,13 @@ def _print_state_transition(from_agent: str, to_agent: str, state: RaceEngineerS
         print(f"   driver_diagnosis:")
         print(f"      diagnosis: {diag.get('diagnosis', 'N/A')}")
         print(f"      priority_features: {diag.get('priority_features', [])}")
+
+    if state.get('driver_constraints'):
+        constraints = state['driver_constraints']
+        if constraints.get('parameter_limits'):
+            print(f"   driver_constraints:")
+            for limit in constraints['parameter_limits']:
+                print(f"      {limit['param']}: {limit['limit_type']}")
 
     if state.get('data_quality_decision'):
         print(f"   data_quality_decision: {state['data_quality_decision']}")
@@ -426,6 +438,64 @@ def engineer_agent(state: RaceEngineerState):
     param = recommended_param
     impact = recommended_impact
 
+    # DECISION 0.5: Validate against driver constraints
+    driver_constraints = state.get('driver_constraints', {})
+    constraint_violated = False
+    constraint_message = ""
+
+    if driver_constraints:
+        parameter_limits = driver_constraints.get('parameter_limits', [])
+        already_tried = driver_constraints.get('already_tried', [])
+        cannot_adjust = driver_constraints.get('cannot_adjust', [])
+
+        # Check if recommended parameter is at a limit
+        for limit in parameter_limits:
+            if limit['param'] == param:
+                # Determine if our recommendation violates this limit
+                limit_type = limit['limit_type']
+                recommending_increase = (method == "correlation" and impact < 0) or (method == "regression" and impact < 0)
+
+                if (limit_type == "at_minimum" and not recommending_increase) or \
+                   (limit_type == "at_maximum" and recommending_increase):
+                    constraint_violated = True
+                    constraint_message = f"\n    [CONSTRAINT] WARNING: {param} is {limit['limit_type']} - {limit['reason']}"
+                    print(constraint_message)
+                    print(f"    DECISION: Finding alternative parameter...")
+
+                    # Find next best parameter that doesn't violate constraints
+                    sorted_impacts = sorted(all_impacts.items(), key=lambda x: abs(x[1]), reverse=True)
+                    for alt_param, alt_impact in sorted_impacts:
+                        # Skip if same as original
+                        if alt_param == param:
+                            continue
+
+                        # Check if this alternative violates constraints
+                        alt_violated = False
+                        for alt_limit in parameter_limits:
+                            if alt_limit['param'] == alt_param:
+                                alt_recommending_increase = (method == "correlation" and alt_impact < 0) or (method == "regression" and alt_impact < 0)
+                                if (alt_limit['limit_type'] == "at_minimum" and not alt_recommending_increase) or \
+                                   (alt_limit['limit_type'] == "at_maximum" and alt_recommending_increase):
+                                    alt_violated = True
+                                    break
+
+                        if not alt_violated and alt_param not in cannot_adjust:
+                            print(f"    ALTERNATIVE: Recommending {alt_param} instead (impact: {abs(alt_impact):.3f})")
+                            param = alt_param
+                            impact = alt_impact
+                            decision_rationale = "constraint_aware"
+                            break
+
+        # Check if parameter cannot be adjusted
+        if param in cannot_adjust:
+            constraint_violated = True
+            constraint_message = f"\n    [CONSTRAINT] WARNING: {param} cannot be adjusted per driver"
+            print(constraint_message)
+
+        # Check if already tried
+        if param in already_tried:
+            print(f"    [INFO] NOTE: {param} was already tried - recommending anyway based on new data")
+
     # DECISION 1: Determine signal strength
     if abs(impact) > 0.1:
         signal_strength = "STRONG"
@@ -491,7 +561,7 @@ def engineer_agent(state: RaceEngineerState):
             for p, i in sorted_all[1:min(4, len(sorted_all))]:
                 print(f"      • {p:25s}: {i:+.3f}")
 
-    # DECISION 4 (OPTIONAL): Generate LLM explanation for crew understanding
+    # DECISION 4 (OPTIONAL): Generate LLM explanation with knowledge base context
     # This showcases API integration and prompt engineering skills
     try:
         from llm_explainer import generate_llm_explanation
@@ -505,6 +575,28 @@ def engineer_agent(state: RaceEngineerState):
             'recommended_param': param,
             'recommended_impact': impact
         }
+
+        # Add knowledge base context if available
+        setup_knowledge = state.get('setup_knowledge_base')
+        if setup_knowledge:
+            from knowledge_base_loader import get_relevant_knowledge, format_knowledge_for_llm
+
+            complaint_type = driver_diagnosis.get('complaint_type', 'general')
+            relevant_knowledge = get_relevant_knowledge(
+                setup_knowledge,
+                handling_issue=complaint_type,
+                parameter=param
+            )
+
+            if relevant_knowledge:
+                knowledge_context = format_knowledge_for_llm(relevant_knowledge)
+                decision_context['knowledge_base'] = knowledge_context
+
+                print(f"\n   [KNOWLEDGE BASE] Consulting setup manual...")
+                # Show parameter limits if available
+                if relevant_knowledge.get('limits'):
+                    for p, limits in relevant_knowledge['limits'].items():
+                        print(f"      {p}: {limits['min']}-{limits['max']} {limits['unit']}")
 
         llm_explanation = generate_llm_explanation(decision_context)
         if llm_explanation:
