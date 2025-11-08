@@ -8,11 +8,14 @@ This project demonstrates how AI agents can analyze racing telemetry to discover
 
 ## 🎯 Key Features
 
+- **Intelligent Input Routing**: Natural language driver feedback analysis with automatic feature detection
+- **Unified Interface**: Seamless, concise experience - driver feedback integrated into a single request
 - **Real Telemetry Processing**: Parses native iRacing .ibt and MoTec .ldx files
-- **AI Agent Orchestration**: Three specialized agents using LangGraph
-  - 🤖 Telemetry Chief: Data parsing and validation
+- **AI Agent Orchestration**: Three specialized agents using LangGraph (working silently in background)
+  - 🤖 Telemetry Chief: Data parsing, validation, and driver feedback interpretation
   - 🔬 Data Scientist: Statistical analysis and correlation discovery
   - 🔧 Crew Chief: Setup recommendations and insights
+- **Concise, Focused Output**: Shows only the most important insights by default
 - **Professional Visualizations**: Dashboard showing performance evolution and key insights
 - **Production-Ready Architecture**: Deterministic, reproducible, scalable
 
@@ -21,30 +24,25 @@ This project demonstrates how AI agents can analyze racing telemetry to discover
 ### 1. Install Dependencies
 
 ```bash
-# Create virtual environment (recommended)
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
 # Install requirements
-pip install -r requirements.txt
+pip install pandas numpy langchain langchain-anthropic langgraph scikit-learn scipy
 ```
 
-### 2. Validate Setup
+### 2. Run the Demo
 
+**Default Example (Oversteer Issue):**
 ```bash
-python validate_setup.py
+python demo.py
 ```
 
-This will check:
-- ✅ All packages installed correctly
-- ✅ Directory structure in place
-- ✅ Code files can be imported
-- ✅ Parsers are working
-
-### 3. Run the Demo
-
+**Custom Driver Feedback:**
 ```bash
-python main.py
+python demo.py "The car is pushing tight in turn 1, I can't get it to rotate on entry"
+```
+
+**Verbose Mode (Detailed Output):**
+```bash
+python demo.py --verbose
 ```
 
 This will:

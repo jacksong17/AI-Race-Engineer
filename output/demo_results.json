@@ -1,4 +1,11 @@
 {
+  "user_input": "Loose rear end on throttle",
+  "analysis_type": "setup_optimization",
+  "focus_areas": [
+    "rear_grip",
+    "tire_pressure_rear",
+    "rear_springs"
+  ],
   "data_source": "real_csv_data",
   "recommendation": "STRONG RECOMMENDATION: Reduce tire_psi_lr (correlation: 0.322)\n   Expected effect: Significantly faster lap times",
   "analysis": {
