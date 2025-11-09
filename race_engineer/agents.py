@@ -466,8 +466,29 @@ def _parse_recommendations_from_text(text: str, state: RaceEngineerState) -> Lis
 
     recommendations = []
 
+    # Parameter name mapping - converts descriptive names to actual column names
+    param_mapping = {
+        'rear spring rate': 'spring_rr',
+        'front spring rate': 'spring_rf',
+        'left front spring': 'spring_lf',
+        'right front spring': 'spring_rf',
+        'left rear spring': 'spring_lr',
+        'right rear spring': 'spring_rr',
+        'rear right tire pressure': 'tire_psi_rr',
+        'rear left tire pressure': 'tire_psi_lr',
+        'front right tire pressure': 'tire_psi_rf',
+        'front left tire pressure': 'tire_psi_lf',
+        'rr tire pressure': 'tire_psi_rr',
+        'lr tire pressure': 'tire_psi_lr',
+        'rf tire pressure': 'tire_psi_rf',
+        'lf tire pressure': 'tire_psi_lf',
+        'track bar height': 'track_bar_height_left',
+        'trackbar height': 'track_bar_height_left',
+    }
+
     # Pattern 1: "decrease/increase PARAM by AMOUNT UNIT"
-    pattern1 = r'(decrease|increase|reduce|raise|lower)\s+(\w+)\s+by\s+([\d.]+)\s*(\w+)?'
+    # Updated to handle multi-word parameter names
+    pattern1 = r'(decrease|increase|reduce|raise|lower)\s+([\w\s_]+?)\s+by\s+([\d.]+)\s*([a-zA-Z/%]+)?'
     matches = re.finditer(pattern1, text, re.IGNORECASE)
 
     for match in matches:
@@ -477,9 +498,15 @@ def _parse_recommendations_from_text(text: str, state: RaceEngineerState) -> Lis
         elif direction in ['raise']:
             direction = 'increase'
 
-        parameter = match.group(2)
+        # Get parameter name and clean it up
+        parameter = match.group(2).strip()
         magnitude = float(match.group(3))
         unit = match.group(4) if match.group(4) else "units"
+
+        # Map descriptive parameter names to actual column names
+        parameter_lower = parameter.lower()
+        if parameter_lower in param_mapping:
+            parameter = param_mapping[parameter_lower]
 
         rec = {
             "parameter": parameter,
