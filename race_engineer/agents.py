@@ -55,14 +55,14 @@ def supervisor_node(state: RaceEngineerState) -> Dict[str, Any]:
     """
     iteration = state['iteration'] + 1
     max_iter = state['max_iterations']
-    print(f"\n[{iteration}/{max_iter}] 🎯 SUPERVISOR: Routing decision...")
+    print(f"\n[{iteration}/{max_iter}]  SUPERVISOR: Routing decision...")
 
     # CRITICAL FIX: Check if we already have recommendations and should complete
     agents_consulted = state.get('agents_consulted', [])
 
     # If setup_engineer already ran, we should complete
     if 'setup_engineer' in agents_consulted:
-        print("✅ All agents consulted (including setup_engineer) - completing workflow")
+        print(" All agents consulted (including setup_engineer) - completing workflow")
         return {
             "messages": [],
             "next_agent": "COMPLETE",
@@ -71,7 +71,7 @@ def supervisor_node(state: RaceEngineerState) -> Dict[str, Any]:
 
     # If we have candidate recommendations, complete
     if state.get('candidate_recommendations'):
-        print(f"✅ Found {len(state['candidate_recommendations'])} recommendations - completing workflow")
+        print(f" Found {len(state['candidate_recommendations'])} recommendations - completing workflow")
         return {
             "messages": [],
             "next_agent": "COMPLETE",
@@ -88,13 +88,13 @@ def supervisor_node(state: RaceEngineerState) -> Dict[str, Any]:
 
     # Add data status
     if state.get('telemetry_data') is not None:
-        context_parts.append("\n✓ Telemetry data loaded")
+        context_parts.append("\nOK: Telemetry data loaded")
     if state.get('statistical_analysis'):
-        context_parts.append("✓ Statistical analysis complete")
+        context_parts.append("OK: Statistical analysis complete")
     if state.get('knowledge_insights'):
-        context_parts.append("✓ Knowledge insights gathered")
+        context_parts.append("OK: Knowledge insights gathered")
     if state.get('candidate_recommendations'):
-        context_parts.append(f"✓ {len(state['candidate_recommendations'])} recommendations generated")
+        context_parts.append(f"OK: {len(state['candidate_recommendations'])} recommendations generated")
 
     context_parts.append("\nDECIDE: Which agent should work next, or is analysis COMPLETE?")
 
@@ -107,7 +107,7 @@ def supervisor_node(state: RaceEngineerState) -> Dict[str, Any]:
     response = llm.invoke(messages)
     decision_text = response.content
 
-    print(f"\n📋 Supervisor Decision:")
+    print(f"\n Supervisor Decision:")
     print(decision_text)
 
     # Parse the decision
@@ -115,7 +115,7 @@ def supervisor_node(state: RaceEngineerState) -> Dict[str, Any]:
 
     # Check iteration limit
     if iteration > max_iter:
-        print(f"\n⚠️  Max iterations ({max_iter}) reached - forcing completion")
+        print(f"\n Max iterations ({max_iter}) reached - forcing completion")
         next_agent = "COMPLETE"
 
     return {
@@ -164,7 +164,7 @@ def data_analyst_node(state: RaceEngineerState) -> Dict[str, Any]:
     """
     iteration = state['iteration'] + 1
     max_iter = state['max_iterations']
-    print(f"\n[{iteration}/{max_iter}] 📊 DATA ANALYST: Analyzing data...")
+    print(f"\n[{iteration}/{max_iter}]  DATA ANALYST: Analyzing data...")
 
     llm = create_llm(temperature=0.3)
 
@@ -201,13 +201,13 @@ def data_analyst_node(state: RaceEngineerState) -> Dict[str, Any]:
     updates = {"agents_consulted": state['agents_consulted'] + ['data_analyst']}
 
     if hasattr(response, 'tool_calls') and response.tool_calls:
-        print(f"\n🔧 Calling {len(response.tool_calls)} tool(s)...")
+        print(f"\n Calling {len(response.tool_calls)} tool(s)...")
 
         for tool_call in response.tool_calls:
             tool_name = tool_call['name']
             tool_args = tool_call['args']
 
-            print(f"   → {tool_name}({list(tool_args.keys())})")
+            print(f"   -> {tool_name}({list(tool_args.keys())})")
 
             # Execute the tool
             tool_result = _execute_tool(tool_name, tool_args, tools)
@@ -239,7 +239,7 @@ def data_analyst_node(state: RaceEngineerState) -> Dict[str, Any]:
         # Get agent's summary after tools
         summary_response = llm.invoke(messages + new_messages)
         new_messages.append(summary_response)
-        print(f"\n📝 Summary: {summary_response.content[:200]}...")
+        print(f"\n Summary: {summary_response.content[:200]}...")
 
     updates['messages'] = new_messages
 
@@ -254,7 +254,7 @@ def knowledge_expert_node(state: RaceEngineerState) -> Dict[str, Any]:
     """
     iteration = state['iteration'] + 1
     max_iter = state['max_iterations']
-    print(f"\n[{iteration}/{max_iter}] 📚 KNOWLEDGE EXPERT: Consulting NASCAR manual...")
+    print(f"\n[{iteration}/{max_iter}]  KNOWLEDGE EXPERT: Consulting NASCAR manual...")
 
     llm = create_llm(temperature=0.3)
 
@@ -282,13 +282,13 @@ def knowledge_expert_node(state: RaceEngineerState) -> Dict[str, Any]:
     updates = {"agents_consulted": state['agents_consulted'] + ['knowledge_expert']}
 
     if hasattr(response, 'tool_calls') and response.tool_calls:
-        print(f"\n🔧 Calling {len(response.tool_calls)} tool(s)...")
+        print(f"\n Calling {len(response.tool_calls)} tool(s)...")
 
         for tool_call in response.tool_calls:
             tool_name = tool_call['name']
             tool_args = tool_call['args']
 
-            print(f"   → {tool_name}({list(tool_args.keys())})")
+            print(f"   -> {tool_name}({list(tool_args.keys())})")
 
             tool_result = _execute_tool(tool_name, tool_args, tools)
 
@@ -305,7 +305,7 @@ def knowledge_expert_node(state: RaceEngineerState) -> Dict[str, Any]:
         # Get summary
         summary_response = llm.invoke(messages + new_messages)
         new_messages.append(summary_response)
-        print(f"\n📝 Summary: {summary_response.content[:200]}...")
+        print(f"\n Summary: {summary_response.content[:200]}...")
 
     updates['messages'] = new_messages
 
@@ -317,242 +317,222 @@ def knowledge_expert_node(state: RaceEngineerState) -> Dict[str, Any]:
 def setup_engineer_node(state: RaceEngineerState) -> Dict[str, Any]:
     """
     Setup Engineer agent generates specific recommendations.
-
-    NOW WITH DEDUPLICATION - Never suggests the same thing twice!
     """
-    iteration = state['iteration'] + 1
-    max_iter = state['max_iterations']
-    print(f"\n[{iteration}/{max_iter}] 🔧 SETUP ENGINEER: Generating recommendations...")
-
-    # CRITICAL FIX: If we already have candidate recommendations, don't regenerate
-    existing_candidates = state.get('candidate_recommendations', [])
-    if existing_candidates:
-        print(f"\n📋 Found {len(existing_candidates)} existing recommendation(s) - using those")
-        # Just ensure final_recommendation is set from existing candidates
-        if not state.get('final_recommendation'):
-            return {
-                'agents_consulted': state['agents_consulted'] + ['setup_engineer'],
-                'final_recommendation': {
-                    "primary": existing_candidates[0] if existing_candidates else None,
-                    "secondary": existing_candidates[1:] if len(existing_candidates) > 1 else [],
-                    "summary": f"Using {len(existing_candidates)} existing recommendation(s)",
-                    "num_unique": len(existing_candidates),
-                    "num_filtered": 0
-                }
-            }
-        else:
-            # Already have both candidates and final rec, just mark engineer as consulted
-            return {
-                'agents_consulted': state['agents_consulted'] + ['setup_engineer']
-            }
+    print("\n" + "="*70)
+    print("SETUP ENGINEER: Generating recommendations")
+    print("="*70)
 
     llm = create_llm(temperature=0.3)
 
-    # Bind tools
-    tools = [check_constraints, validate_physics, visualize_impacts]
-    llm_with_tools = llm.bind_tools(tools)
-
-    # CHECK FOR PREVIOUS RECOMMENDATIONS - Critical for avoiding duplicates!
+    # Check for previous recommendations
     previous_recs = state.get('previous_recommendations', [])
     already_recommended_params = {rec.get('parameter') for rec in previous_recs}
 
-    print(f"\n📋 Previous recommendations: {len(previous_recs)}")
+    print(f"\nPrevious recommendations: {len(previous_recs)}")
     if previous_recs:
         print("   Already recommended:")
         for rec in previous_recs:
-            print(f"      • {rec.get('parameter')}: {rec.get('direction')} by {rec.get('magnitude')}")
+            print(f"      - {rec.get('parameter')}: {rec.get('direction')} by {rec.get('magnitude')}")
 
-    # Build comprehensive context with EXPLICIT deduplication instruction
+    # Build task with EXPLICIT instruction format
     task_parts = []
     task_parts.append(f"Driver feedback: {state['driver_feedback']}")
 
-    # CRITICAL: Tell agent what's already been suggested
-    if previous_recs:
-        task_parts.append("\n⚠️  PREVIOUSLY RECOMMENDED (DO NOT REPEAT THESE):")
-        for rec in previous_recs:
-            task_parts.append(
-                f"  ❌ {rec['parameter']}: {rec['direction']} by {rec['magnitude']} {rec.get('magnitude_unit', '')}"
-            )
-        task_parts.append("\n✅ You MUST recommend DIFFERENT parameters or approaches!")
-
-    # Statistical analysis context
+    # Add statistical analysis if available
     if state.get('statistical_analysis'):
         stats = state['statistical_analysis']
-        task_parts.append(f"\nStatistical Analysis ({stats.get('method', 'unknown')}):")
-
-        # Show impacts but filter out already recommended
         all_impacts = stats.get('correlations') or stats.get('coefficients', {})
+
         if all_impacts:
             sorted_impacts = sorted(all_impacts.items(), key=lambda x: abs(x[1]), reverse=True)
+            task_parts.append("\nStatistical Analysis Results:")
+            for param, impact in sorted_impacts[:5]:
+                direction = "Reduce" if impact > 0 else "Increase"
+                task_parts.append(f"  {direction} {param}: {impact:+.3f}")
 
-            task_parts.append("  Available parameters (sorted by impact):")
-            count = 0
-            for param, impact in sorted_impacts:
-                if param not in already_recommended_params:
-                    direction_indicator = "↓" if impact > 0 else "↑"
-                    task_parts.append(f"    {direction_indicator} {param}: {impact:+.3f}")
-                    count += 1
-                    if count >= 5:  # Show top 5 available
-                        break
-
-            if count == 0:
-                task_parts.append("    ⚠️  All high-impact parameters already recommended!")
-
-    # Knowledge context
+    # Add knowledge insights
     if state.get('knowledge_insights'):
-        task_parts.append("\n✅ Setup knowledge consulted")
+        task_parts.append("\nNASCAR manual guidance consulted")
 
-    # Instructions
-    task_parts.append("\n📝 TASK:")
-    task_parts.append("1. Generate setup recommendations for PARAMETERS NOT YET RECOMMENDED")
-    task_parts.append("2. Use check_constraints to validate each recommendation")
-    task_parts.append("3. Provide specific magnitudes with units (PSI, lb/in, %, inches)")
-    task_parts.append("4. If all good parameters are exhausted, say so clearly")
-
-    if state.get('driver_constraints'):
-        task_parts.append(f"\nDriver Constraints: {state['driver_constraints']}")
+    # CRITICAL: Add explicit format instruction
+    task_parts.append("\nGENERATE RECOMMENDATION:")
+    task_parts.append("Based on the analysis above, recommend ONE specific setup change.")
+    task_parts.append("Format: 'Recommend: [increase/decrease] [parameter] by [amount] [unit]'")
+    task_parts.append("Example: 'Recommend: decrease tire_psi_rr by 1.5 PSI'")
 
     messages = [
         SystemMessage(content=get_setup_engineer_prompt()),
         HumanMessage(content="\n".join(task_parts))
     ]
 
-    response = llm_with_tools.invoke(messages)
+    # Get recommendation WITHOUT tools first
+    response = llm.invoke(messages)
 
-    new_messages = [response]
-    updates = {"agents_consulted": state['agents_consulted'] + ['setup_engineer']}
+    print(f"\nEngineer Response: {response.content[:300]}...")
 
-    # Process tool calls
-    if hasattr(response, 'tool_calls') and response.tool_calls:
-        print(f"\n🔧 Calling {len(response.tool_calls)} tool(s)...")
+    # Parse recommendation from response
+    recommendations = _parse_recommendations_from_text(response.content, state)
 
-        for tool_call in response.tool_calls:
-            tool_name = tool_call['name']
-            tool_args = tool_call['args']
+    updates = {
+        "agents_consulted": state['agents_consulted'] + ['setup_engineer'],
+        "messages": [response]
+    }
 
-            print(f"   → {tool_name}({list(tool_args.keys())})")
+    # If we got recommendations, process them
+    if recommendations:
+        print(f"\nParsed {len(recommendations)} recommendation(s)")
 
-            tool_result = _execute_tool(tool_name, tool_args, tools)
-
-            if tool_name == 'visualize_impacts' and 'error' not in str(tool_result):
-                updates['generated_visualizations'] = state.get('generated_visualizations', []) + [tool_result]
-                updates['tools_called'] = state['tools_called'] + ['visualize_impacts']
-
-            from langchain_core.messages import ToolMessage
-            new_messages.append(ToolMessage(
-                content=json.dumps(tool_result, default=str),
-                tool_call_id=tool_call['id']
-            ))
-
-        # Get final recommendations after tools
-        summary_response = llm.invoke(messages + new_messages)
-        new_messages.append(summary_response)
-        print(f"\n📝 Recommendations: {summary_response.content[:300]}...")
-
-        # Parse recommendations from response
-        new_recommendations = _parse_recommendations(summary_response.content, state)
-
-        if new_recommendations:
-            # DEDUPLICATE before adding to state!
-            dedup_result = filter_unique(new_recommendations, previous_recs)
-
+        # Deduplicate if there are previous recommendations
+        if previous_recs:
+            dedup_result = filter_unique(recommendations, previous_recs)
             unique_recs = dedup_result['unique']
             duplicate_recs = dedup_result['duplicates']
 
-            print(f"\n✅ New recommendations: {len(unique_recs)}")
-            print(f"🚫 Filtered duplicates: {len(duplicate_recs)}")
+            print(f"   Unique: {len(unique_recs)}, Duplicates: {len(duplicate_recs)}")
+            recommendations = unique_recs
 
-            if duplicate_recs:
-                print("   Duplicates filtered:")
-                for dup in duplicate_recs:
-                    print(f"      • {dup.get('parameter')}: {dup.get('direction')}")
+        # Update state with recommendations
+        all_previous = previous_recs.copy()
+        for rec in recommendations:
+            rec['iteration_made'] = state['iteration']
+            rec['agent_source'] = 'setup_engineer'
+            all_previous.append(rec)
 
-            # Add unique recommendations to previous
-            all_previous = previous_recs.copy()
-            for rec in unique_recs:
-                rec['iteration_made'] = state['iteration']
-                rec['agent_source'] = 'setup_engineer'
-                all_previous.append(rec)
+        updates['previous_recommendations'] = all_previous
+        updates['candidate_recommendations'] = recommendations
 
-                # Update parameter history
-                param = rec['parameter']
-                param_history = state.get('parameter_adjustment_history', {})
-                if param not in param_history:
-                    param_history[param] = []
+        # Set final recommendation
+        if recommendations:
+            primary = recommendations[0]
+            updates['final_recommendation'] = {
+                "primary": primary,
+                "secondary": recommendations[1:] if len(recommendations) > 1 else [],
+                "summary": response.content,
+                "num_unique": len(recommendations),
+                "num_filtered": 0
+            }
 
-                param_history[param].append({
-                    'iteration': state['iteration'],
-                    'direction': rec['direction'],
-                    'magnitude': rec['magnitude'],
-                    'result': 'proposed'
-                })
+            print(f"\nPRIMARY: {primary['direction']} {primary['parameter']} by {primary['magnitude']} {primary['magnitude_unit']}")
 
-                updates['parameter_adjustment_history'] = param_history
+    else:
+        # FALLBACK: Create recommendation from statistical analysis
+        print("\nNo recommendations parsed from LLM response - using fallback")
 
-            # Update state
-            updates['previous_recommendations'] = all_previous
-            updates['candidate_recommendations'] = unique_recs
+        if state.get('statistical_analysis'):
+            stats = state['statistical_analysis']
+            all_impacts = stats.get('correlations') or stats.get('coefficients', {})
 
-            # Update stats
-            stats = state.get('recommendation_stats', {
-                'total_proposed': 0,
-                'unique_accepted': 0,
-                'duplicates_filtered': 0,
-                'constraint_violations_caught': 0,
-                'parameters_touched': []
-            })
+            if all_impacts:
+                # Get top parameter by absolute impact
+                top_param, top_impact = max(all_impacts.items(), key=lambda x: abs(x[1]))
 
-            stats['total_proposed'] += len(new_recommendations)
-            stats['unique_accepted'] += len(unique_recs)
-            stats['duplicates_filtered'] += len(duplicate_recs)
-            stats['parameters_touched'] = list(set(stats.get('parameters_touched', []) + [r['parameter'] for r in unique_recs]))
+                # Determine direction
+                direction = "decrease" if top_impact > 0 else "increase"
 
-            updates['recommendation_stats'] = stats
+                # Estimate magnitude
+                magnitude, unit = _estimate_magnitude(top_param)
 
-            # Set final recommendation
-            if unique_recs:
-                updates['final_recommendation'] = {
-                    "primary": unique_recs[0] if unique_recs else None,
-                    "secondary": unique_recs[1:] if len(unique_recs) > 1 else [],
-                    "summary": summary_response.content,
-                    "num_unique": len(unique_recs),
-                    "num_filtered": len(duplicate_recs)
+                fallback_rec = {
+                    "parameter": top_param,
+                    "direction": direction,
+                    "magnitude": magnitude,
+                    "magnitude_unit": unit,
+                    "rationale": f"Statistical analysis shows {top_impact:+.3f} correlation with lap time",
+                    "confidence": 0.8 if abs(top_impact) > 0.3 else 0.6,
+                    "expected_impact": f"Correlation: {top_impact:+.3f}"
                 }
 
-    # CRITICAL FIX: Ensure final_recommendation is ALWAYS set
-    if 'final_recommendation' not in updates:
-        # Try to construct from statistical analysis as fallback
-        analysis = state.get('statistical_analysis')
-        if analysis and analysis.get('top_parameter'):
-            param = analysis['top_parameter']
-            corr = analysis.get('top_correlation', 0)
-            updates['final_recommendation'] = {
-                "primary": {
-                    'parameter': param,
-                    'direction': 'decrease' if corr > 0 else 'increase',
-                    'magnitude': 1.5 if 'psi' in param.lower() else 25,
-                    'magnitude_unit': 'PSI' if 'psi' in param.lower() else 'lb/in',
-                    'rationale': f'Based on correlation analysis ({corr:.3f})',
-                    'confidence': 0.6
-                },
-                "summary": f"Recommended: {'Decrease' if corr > 0 else 'Increase'} {param} based on telemetry correlation",
-                "num_unique": 1,
-                "num_filtered": 0
-            }
-            print("\n⚠️  No agent recommendations - using statistical fallback")
-        else:
-            # Last resort: indicate no recommendation possible
-            updates['final_recommendation'] = {
-                "primary": None,
-                "summary": "Unable to generate recommendation with available data",
-                "num_unique": 0,
-                "num_filtered": 0
-            }
-            print("\n⚠️  Unable to generate recommendations - insufficient data")
+                updates['final_recommendation'] = {
+                    "primary": fallback_rec,
+                    "secondary": [],
+                    "summary": f"Primary recommendation: {direction} {top_param} by {magnitude} {unit}",
+                    "num_unique": 1,
+                    "num_filtered": 0
+                }
 
-    updates['messages'] = new_messages
+                updates['candidate_recommendations'] = [fallback_rec]
+
+                print(f"FALLBACK: {direction} {top_param} by {magnitude} {unit}")
 
     return updates
+
+
+def _parse_recommendations_from_text(text: str, state: RaceEngineerState) -> List[Dict[str, Any]]:
+    """
+    Parse recommendations from LLM response text.
+    Looks for patterns like: "decrease tire_psi_rr by 1.5 PSI"
+    """
+    import re
+
+    recommendations = []
+
+    # Pattern 1: "decrease/increase PARAM by AMOUNT UNIT"
+    pattern1 = r'(decrease|increase|reduce|raise|lower)\s+(\w+)\s+by\s+([\d.]+)\s*(\w+)?'
+    matches = re.finditer(pattern1, text, re.IGNORECASE)
+
+    for match in matches:
+        direction = match.group(1).lower()
+        if direction in ['reduce', 'lower']:
+            direction = 'decrease'
+        elif direction in ['raise']:
+            direction = 'increase'
+
+        parameter = match.group(2)
+        magnitude = float(match.group(3))
+        unit = match.group(4) if match.group(4) else "units"
+
+        rec = {
+            "parameter": parameter,
+            "direction": direction,
+            "magnitude": magnitude,
+            "magnitude_unit": unit,
+            "rationale": "Based on statistical analysis and driver feedback",
+            "confidence": 0.8,
+            "expected_impact": "Improve lap time"
+        }
+
+        recommendations.append(rec)
+
+    # FALLBACK: If no patterns found, use statistical analysis
+    if not recommendations and state.get('statistical_analysis'):
+        stats = state['statistical_analysis']
+        all_impacts = stats.get('correlations') or stats.get('coefficients', {})
+
+        if all_impacts:
+            # Get top 3 parameters
+            sorted_params = sorted(all_impacts.items(), key=lambda x: abs(x[1]), reverse=True)[:3]
+
+            for param, impact in sorted_params:
+                direction = "decrease" if impact > 0 else "increase"
+                magnitude, unit = _estimate_magnitude(param)
+
+                rec = {
+                    "parameter": param,
+                    "direction": direction,
+                    "magnitude": magnitude,
+                    "magnitude_unit": unit,
+                    "rationale": f"Correlation: {impact:+.3f}",
+                    "confidence": 0.8 if abs(impact) > 0.3 else 0.6,
+                    "expected_impact": f"Based on {impact:+.3f} correlation"
+                }
+
+                recommendations.append(rec)
+
+    return recommendations
+
+
+def _estimate_magnitude(parameter: str) -> tuple:
+    """Estimate appropriate magnitude for a parameter"""
+    if 'psi' in parameter.lower() or 'tire' in parameter.lower():
+        return 1.5, "PSI"
+    elif 'spring' in parameter.lower():
+        return 25.0, "lb/in"
+    elif 'cross_weight' in parameter.lower() or 'weight' in parameter.lower():
+        return 0.5, "%"
+    elif 'track_bar' in parameter.lower() or 'height' in parameter.lower():
+        return 0.25, "inches"
+    else:
+        return 1.0, "units"
 
 
 # ===== HELPER FUNCTIONS =====
@@ -584,32 +564,3 @@ def _extract_complaint_type(feedback: str) -> str:
         return "general"
 
 
-def _parse_recommendations(text: str, state: RaceEngineerState) -> List[Dict[str, Any]]:
-    """Parse recommendations from agent response text"""
-    recommendations = []
-
-    # Try to extract structured recommendations
-    # This is a simplified parser - could be enhanced with more robust parsing
-
-    # Look for parameter names and actions
-    if state.get('statistical_analysis'):
-        stats = state['statistical_analysis']
-        top_param = stats.get('top_parameter')
-
-        if top_param:
-            # Create primary recommendation
-            direction = "increase" if stats.get('top_correlation', 0) < 0 else "decrease"
-
-            rec = {
-                "parameter": top_param,
-                "direction": direction,
-                "magnitude": 1.5 if 'psi' in top_param.lower() else 25,
-                "magnitude_unit": "PSI" if 'psi' in top_param.lower() else "lb/in",
-                "rationale": f"Statistical analysis shows {stats.get('method', 'correlation')} of {stats.get('top_correlation', 0):.3f}",
-                "confidence": 0.8,
-                "agent_source": "setup_engineer"
-            }
-
-            recommendations.append(rec)
-
-    return recommendations

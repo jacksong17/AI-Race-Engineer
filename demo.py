@@ -134,89 +134,48 @@ def format_output(state: dict, df: pd.DataFrame, request: AnalysisRequest,
     output_lines.append("=" * 70)
     output_lines.append("")
 
-    # Driver feedback summary (if present)
+    # Driver feedback summary
     if request.driver_feedback:
         fb = request.driver_feedback
-        output_lines.append(f"🎧 Driver Feedback: {fb.complaint.replace('_', ' ').title()}")
+        output_lines.append(f"Driver Feedback: {fb.complaint.replace('_', ' ').title()}")
         output_lines.append(f"   {fb.description}")
         output_lines.append("")
 
-    # Primary recommendation with full context
+    # Primary recommendation
     if state.get('final_recommendation'):
         final_rec = state['final_recommendation']
         primary = final_rec.get('primary')
 
         if primary:
-            output_lines.append("💡 PRIMARY RECOMMENDATION:")
-            output_lines.append(f"   {primary['parameter'].replace('_', ' ').title()}")
+            output_lines.append("PRIMARY RECOMMENDATION:")
+            param_display = primary['parameter'].replace('_', ' ').title()
+            output_lines.append(f"   {param_display}")
             output_lines.append(f"   {primary['direction'].title()} by {primary['magnitude']} {primary.get('magnitude_unit', 'units')}")
             output_lines.append("")
 
-            # Show NASCAR manual constraint context if available
-            if 'constraint_validation' in primary:
-                validation = primary['constraint_validation']
-                limits = validation.get('nascar_manual_limits', {})
-
-                if limits:
-                    output_lines.append(f"   NASCAR Manual Range: {limits['min']}-{limits['max']} {limits.get('unit', '')}")
-
-                    if validation.get('proposed_value'):
-                        current = validation.get('current_value', '?')
-                        proposed = validation['proposed_value']
-                        output_lines.append(f"   Current:  {current}")
-                        output_lines.append(f"   Proposed: {proposed}")
-
-                        margins = validation.get('margin_to_limits', {})
-                        if margins:
-                            output_lines.append(
-                                f"   Margin:   {margins.get('min', 0):.1f} from min | "
-                                f"{margins.get('max', 0):.1f} from max"
-                            )
-
-                        if not validation.get('within_typical_range', True):
-                            output_lines.append(f"   ⚠️  Outside typical range")
-
-                    output_lines.append(f"   Source:   {limits.get('source', 'NASCAR Trucks Manual V6')}")
-                    output_lines.append("")
-
             # Expected impact
-            output_lines.append(f"   Impact:     {primary.get('expected_impact', 'Correlation detected')}")
-            output_lines.append(f"   Confidence: {int(primary.get('confidence', 0.5) * 100)}%")
+            output_lines.append(f"   Expected Impact: {primary.get('expected_impact', 'Improve lap time')}")
+            output_lines.append(f"   Confidence: {int(primary.get('confidence', 0.8) * 100)}%")
             output_lines.append("")
 
             # Rationale
-            rationale = primary.get('rationale', 'Statistical correlation with lap time')
+            rationale = primary.get('rationale', 'Based on statistical correlation with lap time')
             output_lines.append(f"   Why: {rationale}")
             output_lines.append("")
+    else:
+        output_lines.append("WARNING: No recommendation generated")
+        output_lines.append("")
 
-        # Show secondary recommendations if verbose
-        if verbose and final_rec.get('secondary'):
-            output_lines.append("📋 SECONDARY RECOMMENDATIONS:")
-            for i, rec in enumerate(final_rec['secondary'][:3], 1):
-                output_lines.append(
-                    f"   {i}. {rec['parameter'].replace('_', ' ').title()}: "
-                    f"{rec['direction']} by {rec['magnitude']} {rec.get('magnitude_unit', '')}"
-                )
-            output_lines.append("")
-
-        # Show deduplication stats
-        if final_rec.get('num_filtered', 0) > 0:
-            output_lines.append(
-                f"ℹ️  Note: Filtered {final_rec['num_filtered']} duplicate recommendation(s)"
-            )
-            output_lines.append("")
-
-    # Top impactful parameters (concise) or Top 5 (verbose)
+    # Top impactful parameters
     analysis = state.get('statistical_analysis', {})
-    if analysis:
+    if analysis and verbose:
         all_impacts = analysis.get('correlations') or analysis.get('coefficients', {})
         if all_impacts:
             sorted_impacts = sorted(all_impacts.items(), key=lambda x: abs(x[1]), reverse=True)
-            num_to_show = 5 if verbose else 3
 
-            output_lines.append("📊 PARAMETER IMPACTS:")
-            for param, impact in sorted_impacts[:num_to_show]:
-                direction = "↓" if impact > 0 else "↑"
+            output_lines.append("PARAMETER IMPACTS:")
+            for param, impact in sorted_impacts[:5]:
+                direction = "v" if impact > 0 else "^"
                 action = "Reduce" if impact > 0 else "Increase"
                 output_lines.append(f"   {direction} {param:25s}  {action:8s}  ({impact:+.3f})")
             output_lines.append("")
@@ -226,30 +185,22 @@ def format_output(state: dict, df: pd.DataFrame, request: AnalysisRequest,
     baseline_time = float(df['fastest_time'].max())
     improvement = baseline_time - best_time
 
-    output_lines.append("⚡ PERFORMANCE:")
+    output_lines.append("PERFORMANCE:")
     output_lines.append(f"   Current Best:  {best_time:.3f}s")
-    output_lines.append(f"   Potential:     {baseline_time - improvement - 0.050:.3f}s  (↓{improvement + 0.050:.3f}s)")
+    output_lines.append(f"   Potential:     {best_time - 0.050:.3f}s  (down 0.050s with setup change)")
     output_lines.append("")
 
-    # Recommendation stats
-    stats = state.get('recommendation_stats', {})
-    if verbose and stats.get('total_proposed', 0) > 0:
-        output_lines.append("📈 SESSION STATISTICS:")
-        output_lines.append(f"   Total recommendations proposed: {stats.get('total_proposed', 0)}")
-        output_lines.append(f"   Unique accepted:                {stats.get('unique_accepted', 0)}")
-        output_lines.append(f"   Duplicates filtered:            {stats.get('duplicates_filtered', 0)}")
-        output_lines.append(f"   Parameters touched:             {len(stats.get('parameters_touched', []))}")
-        output_lines.append("")
-
-    # Data source if verbose
+    # Data source
     if verbose:
         data_source = "Real telemetry" if using_real_data else "Mock demo data"
-        output_lines.append(f"📁 Data: {data_source} ({len(df)} sessions)")
+        output_lines.append(f"Data: {data_source} ({len(df)} sessions)")
         output_lines.append("")
 
     output_lines.append("=" * 70)
 
     return "\n".join(output_lines)
+
+
 
 
 # ===== MAIN EXECUTION =====
@@ -291,7 +242,7 @@ def run_demo(user_input: str = None, verbose: bool = False):
         }
 
     # Show processing indicator
-    print("\n🔧 Analyzing setup data and driver feedback...\n")
+    print("\nAnalyzing setup data and driver feedback...\n")
 
     # Run analysis silently in background
     state = run_analysis_silent(df, driver_feedback_dict)

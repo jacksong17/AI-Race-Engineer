@@ -39,18 +39,18 @@ def test_dataframe_boolean_checks():
     try:
         # This should NOT raise ValueError
         if state.get('telemetry_data') is not None:
-            print("  ✓ DataFrame 'is not None' check works")
+            print("  PASS: DataFrame 'is not None' check works")
 
         if state.get('telemetry_data') is None:
-            print("  ✗ This shouldn't trigger")
+            print("  FAIL: This shouldn't trigger")
         else:
-            print("  ✓ DataFrame 'is None' check works")
+            print("  PASS: DataFrame 'is None' check works")
 
     except ValueError as e:
-        print(f"  ✗ FAILED: {e}")
+        print(f"  FAIL: FAILED: {e}")
         return False
 
-    print("  ✓ All DataFrame boolean checks passed")
+    print("  PASS: All DataFrame boolean checks passed")
     return True
 
 
@@ -87,10 +87,10 @@ def test_state_creation():
 
     for field in required_fields:
         if field not in state:
-            print(f"  ✗ Missing required field: {field}")
+            print(f"  FAIL: Missing required field: {field}")
             return False
 
-    print("  ✓ All required fields present")
+    print("  PASS: All required fields present")
 
     # Verify initial values
     assert state['iteration'] == 0, "iteration should start at 0"
@@ -98,7 +98,7 @@ def test_state_creation():
     assert state['previous_recommendations'] == [], "previous_recommendations should be empty"
     assert state['telemetry_data'] is None, "telemetry_data should be None initially"
 
-    print("  ✓ Initial values correct")
+    print("  PASS: Initial values correct")
     return True
 
 
@@ -122,10 +122,10 @@ def test_supervisor_early_exit():
 
     # Should route to COMPLETE
     if result.get('next_agent') == 'COMPLETE':
-        print("  ✓ Supervisor correctly routes to COMPLETE after setup_engineer")
+        print("  PASS: Supervisor correctly routes to COMPLETE after setup_engineer")
         return True
     else:
-        print(f"  ✗ Supervisor routed to: {result.get('next_agent')} (expected COMPLETE)")
+        print(f"  FAIL: Supervisor routed to: {result.get('next_agent')} (expected COMPLETE)")
         return False
 
 
@@ -150,22 +150,22 @@ def test_final_recommendation_fallback():
 
         # Should have final_recommendation even with None analysis
         if 'final_recommendation' in result:
-            print("  ✓ final_recommendation set even with None statistical_analysis")
+            print("  PASS: final_recommendation set even with None statistical_analysis")
             return True
         else:
-            print("  ✗ final_recommendation not set")
+            print("  FAIL: final_recommendation not set")
             return False
     except AttributeError as e:
-        print(f"  ✗ AttributeError raised: {e}")
+        print(f"  FAIL: AttributeError raised: {e}")
         return False
     except Exception as e:
         # LLM call will fail without API key, but we're testing the None check
         if "AttributeError" in str(e):
-            print(f"  ✗ AttributeError in chain: {e}")
+            print(f"  FAIL: AttributeError in chain: {e}")
             return False
         else:
             # Other errors are expected (API key, etc)
-            print("  ✓ No AttributeError (other errors expected without API key)")
+            print("  PASS: No AttributeError (other errors expected without API key)")
             return True
 
 
@@ -190,15 +190,15 @@ def test_display_results_handles_empty():
         sys.stdout = old_stdout
 
         if "WARNING: No recommendations" in output or "RECOMMENDATION" in output:
-            print("  ✓ display_results handles empty state")
+            print("  PASS: display_results handles empty state")
             return True
         else:
-            print(f"  ✗ Unexpected output: {output[:100]}")
+            print(f"  FAIL: Unexpected output: {output[:100]}")
             return False
 
     except Exception as e:
         sys.stdout = old_stdout
-        print(f"  ✗ display_results failed on empty state: {e}")
+        print(f"  FAIL: display_results failed on empty state: {e}")
         return False
 
 
@@ -212,7 +212,7 @@ def test_demo_data_loading():
     df = loader.load_data()
 
     if df is not None and len(df) > 0:
-        print(f"  ✓ Loaded real data: {len(df)} sessions")
+        print(f"  PASS: Loaded real data: {len(df)} sessions")
         return True
     else:
         print("  ℹ No real data, would use mock data")
@@ -220,10 +220,10 @@ def test_demo_data_loading():
         from demo import generate_mock_data
         mock_df = generate_mock_data()
         if len(mock_df) > 0:
-            print(f"  ✓ Generated mock data: {len(mock_df)} sessions")
+            print(f"  PASS: Generated mock data: {len(mock_df)} sessions")
             return True
         else:
-            print("  ✗ Mock data generation failed")
+            print("  FAIL: Mock data generation failed")
             return False
 
 
@@ -248,7 +248,7 @@ def run_all_tests():
             passed = test_func()
             results.append((test_name, passed))
         except Exception as e:
-            print(f"\n  ✗ {test_name} raised exception: {e}")
+            print(f"\n  FAIL: {test_name} raised exception: {e}")
             import traceback
             traceback.print_exc()
             results.append((test_name, False))
@@ -262,13 +262,13 @@ def run_all_tests():
     total = len(results)
 
     for test_name, passed_test in results:
-        status = "✓ PASS" if passed_test else "✗ FAIL"
+        status = "PASS: PASS" if passed_test else "FAIL: FAIL"
         print(f"{status:8s} {test_name}")
 
     print(f"\n{passed}/{total} tests passed")
 
     if passed == total:
-        print("\n🎉 All tests passed!")
+        print("\nSUCCESS: All tests passed!")
         return 0
     else:
         print(f"\n⚠️  {total - passed} test(s) failed")
