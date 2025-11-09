@@ -1,0 +1,269 @@
+"""
+State schema for the Race Engineer agentic workflow.
+
+Defines the complete state structure that flows through all agents.
+"""
+
+from typing import TypedDict, Annotated, List, Dict, Optional, Literal, Any
+from langgraph.graph.message import add_messages
+from langchain_core.messages import BaseMessage
+import pandas as pd
+
+
+class RaceEngineerState(TypedDict):
+    """
+    Complete state for agentic race engineer workflow.
+
+    This state is passed between all agents and maintains the complete
+    context of the analysis session.
+    """
+
+    # ===== CONVERSATION MANAGEMENT =====
+    messages: Annotated[List[BaseMessage], add_messages]
+    """Full conversation history between agents and tools for coordination"""
+
+    # ===== INPUT DATA =====
+    driver_feedback: str
+    """Original driver feedback text"""
+
+    driver_feedback_parsed: Optional[Dict[str, Any]]
+    """Structured driver feedback after parsing:
+       - complaint_type: str (oversteer, understeer, bottoming, etc)
+       - severity: str (minor, moderate, severe)
+       - phase: str (entry, mid, exit, straight)
+       - description: str
+       - concerns: List[str]
+    """
+
+    telemetry_file_paths: List[str]
+    """Paths to telemetry files (.ibt, .ldx, .csv)"""
+
+    driver_constraints: Optional[Dict[str, Any]]
+    """Driver-specified constraints:
+       - parameters_at_limit: Dict[str, str]  # param -> 'min'|'max'
+       - cannot_adjust: List[str]  # Parameters that cannot be changed
+       - already_tried: List[str]  # Parameters already tested
+       - priority_areas: List[str]  # Areas driver wants to focus on
+    """
+
+    session_config: Dict[str, Any]
+    """Analysis configuration:
+       - track: str (default: bristol)
+       - car_class: str (default: nascar_truck)
+       - conditions: str (dry, wet, temperature, etc)
+       - analysis_mode: str (quick, standard, comprehensive)
+    """
+
+    # ===== LOADED DATA =====
+    telemetry_data: Optional[Any]  # pd.DataFrame but using Any for typing
+    """Loaded and cleaned telemetry data as DataFrame"""
+
+    data_quality_report: Optional[Dict[str, Any]]
+    """Data quality assessment:
+       - num_sessions: int
+       - lap_time_range: tuple (min, max)
+       - outliers_detected: List[Dict]
+       - missing_data: Dict[str, float]
+       - usable_parameters: List[str]
+       - quality_score: float (0-1)
+    """
+
+    # ===== ANALYSIS RESULTS =====
+    feature_analysis: Optional[Dict[str, Any]]
+    """Feature selection and importance:
+       - selected_features: List[str]
+       - variance_scores: Dict[str, float]
+       - relevance_to_complaint: Dict[str, float]
+       - rejection_reasons: Dict[str, str]
+    """
+
+    statistical_analysis: Optional[Dict[str, Any]]
+    """Statistical analysis results:
+       - method: str (correlation, regression, mixed)
+       - parameter_impacts: Dict[str, float]
+       - confidence_scores: Dict[str, float]
+       - p_values: Optional[Dict[str, float]]
+       - r_squared: Optional[float]
+       - significant_params: List[str]
+    """
+
+    knowledge_insights: Optional[Dict[str, Any]]
+    """Setup manual and historical insights:
+       - relevant_sections: List[str]
+       - parameter_limits: Dict[str, Dict]
+       - setup_principles: List[str]
+       - similar_historical_cases: List[Dict]
+       - successful_past_solutions: List[Dict]
+    """
+
+    # ===== RECOMMENDATIONS =====
+    candidate_recommendations: List[Dict[str, Any]]
+    """All proposed recommendations from agents:
+       Each recommendation contains:
+         - parameter: str
+         - direction: str (increase/decrease)
+         - magnitude: float
+         - magnitude_unit: str (psi, lb/in, %, inches)
+         - rationale: str
+         - confidence: float (0-1)
+         - agent_source: str
+         - expected_impact: Optional[float]
+    """
+
+    validated_recommendations: Optional[Dict[str, Any]]
+    """Recommendations after validation:
+       - primary: Dict (main recommendation)
+       - secondary: List[Dict] (supporting recommendations)
+       - validation_results: List[Dict]
+       - warnings: List[str]
+       - constraints_checked: List[str]
+       - physics_validated: bool
+    """
+
+    final_recommendation: Optional[Dict[str, Any]]
+    """Final synthesized recommendation for output:
+       - primary_change: Dict
+       - secondary_changes: List[Dict]
+       - expected_impact: str
+       - confidence: float
+       - rationale: str
+       - caveats: List[str]
+       - visualization_paths: List[str]
+    """
+
+    # ===== WORKFLOW CONTROL =====
+    next_agent: Optional[str]
+    """Supervisor's decision on next agent to call:
+       - data_analyst
+       - knowledge_expert
+       - setup_engineer
+       - COMPLETE
+    """
+
+    iteration: int
+    """Current iteration count (starts at 0)"""
+
+    max_iterations: int
+    """Maximum allowed iterations to prevent infinite loops (default: 5)"""
+
+    agents_consulted: List[str]
+    """Track which agents have been called this session"""
+
+    tools_called: List[str]
+    """Track which tools have been used"""
+
+    workflow_status: Literal["active", "completed", "error"]
+    """Current workflow state"""
+
+    # ===== ERROR HANDLING =====
+    errors: List[Dict[str, Any]]
+    """Any errors encountered:
+       - agent: str
+       - error_type: str
+       - message: str
+       - recoverable: bool
+       - timestamp: str
+    """
+
+    warnings: List[str]
+    """Non-fatal warnings collected during analysis"""
+
+    # ===== OUTPUT =====
+    generated_visualizations: List[str]
+    """Paths to generated visualization files"""
+
+    performance_projection: Optional[Dict[str, Any]]
+    """Projected performance improvement:
+       - baseline_time: float
+       - projected_time: float
+       - improvement: float
+       - confidence_interval: tuple
+    """
+
+    # ===== SESSION METADATA =====
+    session_id: str
+    """Unique session identifier (UUID)"""
+
+    session_timestamp: str
+    """ISO timestamp when session started"""
+
+
+def create_initial_state(
+    driver_feedback: str,
+    telemetry_files: List[str],
+    constraints: Optional[Dict] = None,
+    config: Optional[Dict] = None,
+    session_id: Optional[str] = None
+) -> RaceEngineerState:
+    """
+    Create initial state for a new analysis session.
+
+    Args:
+        driver_feedback: Raw driver feedback text
+        telemetry_files: List of file paths to telemetry data
+        constraints: Optional driver constraints
+        config: Optional session configuration
+        session_id: Optional session ID (generated if not provided)
+
+    Returns:
+        Initialized RaceEngineerState
+    """
+    from datetime import datetime
+    import uuid
+
+    if session_id is None:
+        session_id = str(uuid.uuid4())
+
+    if config is None:
+        config = {
+            "track": "bristol",
+            "car_class": "nascar_truck",
+            "conditions": "dry",
+            "analysis_mode": "standard"
+        }
+
+    return {
+        # Conversation
+        "messages": [],
+
+        # Input
+        "driver_feedback": driver_feedback,
+        "driver_feedback_parsed": None,
+        "telemetry_file_paths": telemetry_files,
+        "driver_constraints": constraints,
+        "session_config": config,
+
+        # Loaded data
+        "telemetry_data": None,
+        "data_quality_report": None,
+
+        # Analysis
+        "feature_analysis": None,
+        "statistical_analysis": None,
+        "knowledge_insights": None,
+
+        # Recommendations
+        "candidate_recommendations": [],
+        "validated_recommendations": None,
+        "final_recommendation": None,
+
+        # Workflow control
+        "next_agent": None,
+        "iteration": 0,
+        "max_iterations": 5,
+        "agents_consulted": [],
+        "tools_called": [],
+        "workflow_status": "active",
+
+        # Error handling
+        "errors": [],
+        "warnings": [],
+
+        # Output
+        "generated_visualizations": [],
+        "performance_projection": None,
+
+        # Metadata
+        "session_id": session_id,
+        "session_timestamp": datetime.utcnow().isoformat()
+    }

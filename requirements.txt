@@ -1,15 +1,22 @@
+# Core data science and ML
 pandas
 numpy
+scipy
 matplotlib
 seaborn
 scikit-learn
+
+# LangGraph and LangChain
 langgraph
 langchain-core
-pyirsdk
-lxml
-python-dotenv
+langchain-anthropic
 
-# LLM providers (optional - for driver feedback interpretation)
-# Install at least one if you want LLM-powered feedback interpretation:
-anthropic>=0.39.0  # For Claude API
-# openai>=1.0.0    # Uncomment for OpenAI API
+# Anthropic Claude API (required for agents)
+anthropic>=0.39.0
+
+# Telemetry parsing
+pyirsdk  # iRacing telemetry parser (optional - falls back to CSV/mock data)
+lxml
+
+# Utilities
+python-dotenv

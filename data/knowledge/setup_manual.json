@@ -1,0 +1,252 @@
+{
+  "track": "Bristol Motor Speedway",
+  "car_class": "NASCAR Truck Series",
+  "track_info": {
+    "type": "short_oval",
+    "length": "0.533 miles",
+    "banking": "24-28 degrees",
+    "surface": "concrete",
+    "characteristics": [
+      "High banking loads right-side tires heavily",
+      "Tight radius requires strong turn-in",
+      "Concrete surface provides high grip but is abrasive",
+      "Tire management critical for longer runs"
+    ]
+  },
+  "handling_issues": {
+    "oversteer": {
+      "description": "Car is loose - rear end wants to come around, especially on throttle application",
+      "common_causes": [
+        "Insufficient rear mechanical grip",
+        "Rear tire pressure too high",
+        "Rear springs too stiff",
+        "Track bar height incorrect"
+      ],
+      "principles": [
+        "Increase rear grip to stabilize car",
+        "Lower rear tire pressure increases contact patch and mechanical grip",
+        "Softer rear springs allow more tire compliance",
+        "Lower track bar shifts rear roll center, loosening the car"
+      ],
+      "parameter_guidance": {
+        "tire_psi_rr": {
+          "action": "Reduce by 1-2 PSI",
+          "effect": "Increases contact patch and mechanical grip at corner exit",
+          "range": "26-32 PSI typical"
+        },
+        "tire_psi_lr": {
+          "action": "Reduce by 1-2 PSI",
+          "effect": "Improves rear grip in corners",
+          "range": "24-30 PSI typical"
+        },
+        "track_bar_height_left": {
+          "action": "Lower by 0.25-0.5 inches",
+          "effect": "Shifts rear roll center, adds rear grip",
+          "range": "8-12 inches typical"
+        },
+        "spring_rr": {
+          "action": "Soften by 25-50 lb/in",
+          "effect": "More compliance, better tire contact",
+          "range": "300-500 lb/in typical"
+        }
+      }
+    },
+    "understeer": {
+      "description": "Car is tight - pushes or plows, won't turn",
+      "common_causes": [
+        "Insufficient front grip",
+        "Front tire pressure too high",
+        "Cross weight distribution incorrect",
+        "Front springs too stiff"
+      ],
+      "principles": [
+        "Increase front grip to improve turn-in",
+        "Lower front tire pressure for more contact",
+        "Adjust weight distribution to favor front",
+        "Softer front springs improve compliance"
+      ],
+      "parameter_guidance": {
+        "tire_psi_lf": {
+          "action": "Reduce by 1-2 PSI",
+          "effect": "Increases front contact patch",
+          "range": "26-32 PSI typical"
+        },
+        "tire_psi_rf": {
+          "action": "Reduce by 1-2 PSI",
+          "effect": "Improves right-front grip (heavily loaded at Bristol)",
+          "range": "28-34 PSI typical"
+        },
+        "cross_weight": {
+          "action": "Reduce by 0.5-1.0%",
+          "effect": "Transfers load to front, helps turn-in",
+          "range": "50-56% typical"
+        },
+        "spring_lf": {
+          "action": "Soften by 25-50 lb/in",
+          "effect": "Improves front compliance and grip",
+          "range": "300-450 lb/in typical"
+        },
+        "spring_rf": {
+          "action": "Soften by 25-50 lb/in",
+          "effect": "Critical for right-front grip",
+          "range": "325-475 lb/in typical"
+        }
+      }
+    },
+    "bottoming": {
+      "description": "Car bottoms out or hits the track, especially in corners",
+      "common_causes": [
+        "Springs too soft",
+        "Ride height too low",
+        "Excessive aerodynamic downforce"
+      ],
+      "principles": [
+        "Increase spring rates to support the car",
+        "Maintain minimum ride height",
+        "Balance aero load with mechanical support"
+      ],
+      "parameter_guidance": {
+        "spring_lf": {
+          "action": "Stiffen by 25-50 lb/in",
+          "effect": "Supports front of car better",
+          "range": "350-500 lb/in"
+        },
+        "spring_rf": {
+          "action": "Stiffen by 25-50 lb/in",
+          "effect": "Critical at Bristol due to high banking",
+          "range": "375-525 lb/in"
+        },
+        "spring_lr": {
+          "action": "Stiffen by 25-50 lb/in",
+          "effect": "Rear support",
+          "range": "250-400 lb/in"
+        },
+        "spring_rr": {
+          "action": "Stiffen by 25-50 lb/in",
+          "effect": "Heavily loaded at Bristol",
+          "range": "300-500 lb/in"
+        }
+      }
+    },
+    "poor_traction": {
+      "description": "Car spins tires or loses traction on corner exit",
+      "common_causes": [
+        "Insufficient rear grip",
+        "Cross weight too high",
+        "Rear tire pressure incorrect",
+        "Differential settings"
+      ],
+      "principles": [
+        "Maximize rear mechanical grip",
+        "Optimize weight transfer on exit",
+        "Balance contact patch vs stiffness"
+      ],
+      "parameter_guidance": {
+        "tire_psi_rr": {
+          "action": "Fine-tune ±0.5-1 PSI",
+          "effect": "Optimize contact patch vs tire stiffness",
+          "range": "27-31 PSI"
+        },
+        "tire_psi_lr": {
+          "action": "Reduce slightly",
+          "effect": "More mechanical grip",
+          "range": "25-29 PSI"
+        },
+        "cross_weight": {
+          "action": "Adjust ±0.5%",
+          "effect": "Affects weight transfer on exit",
+          "range": "52-55%"
+        }
+      }
+    }
+  },
+  "parameters": {
+    "tire_psi_lf": {
+      "name": "Left Front Tire Pressure",
+      "range": "26-32 PSI",
+      "typical": "28-30 PSI",
+      "unit": "PSI",
+      "effect": "Higher = more responsive but less grip. Lower = more grip but slower response"
+    },
+    "tire_psi_rf": {
+      "name": "Right Front Tire Pressure",
+      "range": "28-34 PSI",
+      "typical": "30-32 PSI",
+      "unit": "PSI",
+      "effect": "Critical at Bristol - heavily loaded due to banking"
+    },
+    "tire_psi_lr": {
+      "name": "Left Rear Tire Pressure",
+      "range": "24-30 PSI",
+      "typical": "26-28 PSI",
+      "unit": "PSI",
+      "effect": "Lower = more mechanical grip, but can overheat"
+    },
+    "tire_psi_rr": {
+      "name": "Right Rear Tire Pressure",
+      "range": "26-32 PSI",
+      "typical": "28-30 PSI",
+      "unit": "PSI",
+      "effect": "Critical for corner exit - balance grip vs tire wear"
+    },
+    "cross_weight": {
+      "name": "Cross Weight Percentage",
+      "range": "50-56%",
+      "typical": "52-54%",
+      "unit": "%",
+      "effect": "Higher = more turn-in bite, but can cause tight condition mid-corner"
+    },
+    "track_bar_height_left": {
+      "name": "Track Bar Height (Left Side)",
+      "range": "8-14 inches",
+      "typical": "10-12 inches",
+      "unit": "inches",
+      "effect": "Higher = tighter car, Lower = looser car. Shifts rear roll center"
+    },
+    "spring_lf": {
+      "name": "Left Front Spring Rate",
+      "range": "300-500 lb/in",
+      "typical": "375-425 lb/in",
+      "unit": "lb/in",
+      "effect": "Stiffer = less body roll, more responsive. Softer = more mechanical grip"
+    },
+    "spring_rf": {
+      "name": "Right Front Spring Rate",
+      "range": "325-525 lb/in",
+      "typical": "400-450 lb/in",
+      "unit": "lb/in",
+      "effect": "Most critical spring - heavily loaded at Bristol"
+    },
+    "spring_lr": {
+      "name": "Left Rear Spring Rate",
+      "range": "250-400 lb/in",
+      "typical": "300-350 lb/in",
+      "unit": "lb/in",
+      "effect": "Affects rear compliance and grip"
+    },
+    "spring_rr": {
+      "name": "Right Rear Spring Rate",
+      "range": "300-500 lb/in",
+      "typical": "375-425 lb/in",
+      "unit": "lb/in",
+      "effect": "Balance between support and mechanical grip"
+    }
+  },
+  "setup_principles": [
+    "Bristol requires aggressive setups due to high banking and short track",
+    "Right-side components (RF, RR) are heavily loaded - often 2x left side",
+    "Tire pressure is the quickest adjustment for fine-tuning",
+    "Spring rates provide platform stability but can hurt mechanical grip if too stiff",
+    "Cross weight affects turn-in but can cause mid-corner problems if too high",
+    "Track bar is powerful for rear balance but affects car differently through corner phases"
+  ],
+  "analysis_guidelines": {
+    "minimum_sessions": 5,
+    "recommended_sessions": 15,
+    "ideal_sessions": 25,
+    "variance_threshold": 0.01,
+    "correlation_significance": 0.05,
+    "strong_correlation": 0.5,
+    "moderate_correlation": 0.3
+  }
+}
