@@ -6,10 +6,17 @@ Production-ready agentic system for NASCAR racing telemetry analysis.
 """
 
 import sys
+import os
 import argparse
 from pathlib import Path
 import json
 from typing import Optional, List
+
+# Fix Windows Unicode issues
+if sys.platform == "win32":
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 # Add race_engineer to path
 sys.path.insert(0, str(Path(__file__).parent))
