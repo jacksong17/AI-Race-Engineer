@@ -131,6 +131,37 @@ class RaceEngineerState(TypedDict):
        - visualization_paths: List[str]
     """
 
+    previous_recommendations: List[Dict[str, Any]]
+    """History of all recommendations made this session:
+       - parameter: str
+       - direction: str (increase/decrease)
+       - magnitude: float
+       - magnitude_unit: str
+       - iteration_made: int
+       - agent_source: str
+       - rationale: str
+       - was_included_in_final: bool
+    """
+
+    parameter_adjustment_history: Dict[str, List[Dict[str, Any]]]
+    """Track all adjustments by parameter:
+       {
+           'tire_psi_rr': [
+               {'iteration': 1, 'change': -1.5, 'result': 'accepted'},
+               {'iteration': 3, 'change': -1.0, 'result': 'rejected_duplicate'}
+           ]
+       }
+    """
+
+    recommendation_stats: Dict[str, Any]
+    """Statistics about recommendations:
+       - total_proposed: int
+       - unique_accepted: int
+       - duplicates_filtered: int
+       - constraint_violations_caught: int
+       - parameters_touched: List[str]
+    """
+
     # ===== WORKFLOW CONTROL =====
     next_agent: Optional[str]
     """Supervisor's decision on next agent to call:
@@ -246,6 +277,15 @@ def create_initial_state(
         "candidate_recommendations": [],
         "validated_recommendations": None,
         "final_recommendation": None,
+        "previous_recommendations": [],
+        "parameter_adjustment_history": {},
+        "recommendation_stats": {
+            "total_proposed": 0,
+            "unique_accepted": 0,
+            "duplicates_filtered": 0,
+            "constraint_violations_caught": 0,
+            "parameters_touched": []
+        },
 
         # Workflow control
         "next_agent": None,
