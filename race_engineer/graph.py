@@ -4,14 +4,7 @@ LangGraph workflow construction for the Race Engineer system.
 Defines the graph structure, routing logic, and execution flow.
 """
 
-import sys
-import io
 from langgraph.graph import StateGraph, END
-
-# Fix Windows Unicode issues
-if sys.platform == "win32":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 try:
     from langgraph_checkpoint_sqlite import SqliteSaver
 except ImportError:

@@ -4,16 +4,9 @@ Agent node implementations for the Race Engineer workflow.
 Each agent is a specialized node in the LangGraph that performs specific tasks.
 """
 
-import sys
-import io
 from typing import Dict, Any, List
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langchain_anthropic import ChatAnthropic
-
-# Fix Windows Unicode issues
-if sys.platform == "win32":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 from race_engineer.state import RaceEngineerState
 from race_engineer.prompts import (
     get_supervisor_prompt,
