@@ -11,6 +11,10 @@ import argparse
 from pathlib import Path
 import json
 from typing import Optional, List
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Fix Windows Unicode issues
 if sys.platform == "win32":
