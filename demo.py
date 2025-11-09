@@ -4,6 +4,7 @@ Unified interface with intelligent routing and concise output
 """
 
 import sys
+import os
 from pathlib import Path
 import pandas as pd
 import json
@@ -13,6 +14,16 @@ from contextlib import redirect_stdout
 from csv_data_loader import CSVDataLoader
 from input_router import InputRouter, AnalysisRequest
 from dotenv import load_dotenv
+
+# Fix Windows console encoding for emoji support
+if sys.platform == 'win32':
+    # Force UTF-8 encoding on Windows
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
+    else:
+        # Fallback for older Python versions
+        import codecs
+        sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
 
 # Load environment variables from .env file
 load_dotenv()
