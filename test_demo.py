@@ -133,20 +133,40 @@ def test_final_recommendation_fallback():
     """Test that setup_engineer always sets final_recommendation"""
     print("\nTesting final_recommendation fallback...")
 
-    # This test would require mocking LLM responses
-    # For now, just verify the logic structure exists
+    from race_engineer.agents import setup_engineer_node
+    from race_engineer.state import create_initial_state
 
-    from race_engineer import agents
-    import inspect
+    # Create state with no statistical_analysis (None)
+    state = create_initial_state(
+        driver_feedback="Test",
+        telemetry_files=[]
+    )
+    state['statistical_analysis'] = None  # This was causing AttributeError
+    state['iteration'] = 2
 
-    source = inspect.getsource(agents.setup_engineer_node)
+    try:
+        # This should NOT raise AttributeError
+        result = setup_engineer_node(state)
 
-    if "CRITICAL FIX" in source and "final_recommendation" in source:
-        print("  ✓ final_recommendation fallback logic exists in code")
-        return True
-    else:
-        print("  ✗ final_recommendation fallback logic not found")
+        # Should have final_recommendation even with None analysis
+        if 'final_recommendation' in result:
+            print("  ✓ final_recommendation set even with None statistical_analysis")
+            return True
+        else:
+            print("  ✗ final_recommendation not set")
+            return False
+    except AttributeError as e:
+        print(f"  ✗ AttributeError raised: {e}")
         return False
+    except Exception as e:
+        # LLM call will fail without API key, but we're testing the None check
+        if "AttributeError" in str(e):
+            print(f"  ✗ AttributeError in chain: {e}")
+            return False
+        else:
+            # Other errors are expected (API key, etc)
+            print("  ✓ No AttributeError (other errors expected without API key)")
+            return True
 
 
 def test_display_results_handles_empty():

@@ -522,8 +522,8 @@ def setup_engineer_node(state: RaceEngineerState) -> Dict[str, Any]:
     # CRITICAL FIX: Ensure final_recommendation is ALWAYS set
     if 'final_recommendation' not in updates:
         # Try to construct from statistical analysis as fallback
-        analysis = state.get('statistical_analysis', {})
-        if analysis.get('top_parameter'):
+        analysis = state.get('statistical_analysis')
+        if analysis and analysis.get('top_parameter'):
             param = analysis['top_parameter']
             corr = analysis.get('top_correlation', 0)
             updates['final_recommendation'] = {
