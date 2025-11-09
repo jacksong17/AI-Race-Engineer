@@ -178,7 +178,7 @@ def data_analyst_node(state: RaceEngineerState) -> Dict[str, Any]:
     task_parts.append(f"Driver feedback: {state['driver_feedback']}")
     task_parts.append(f"Telemetry files: {len(state['telemetry_file_paths'])} files")
 
-    if not state.get('telemetry_data'):
+    if state.get('telemetry_data') is None:
         task_parts.append("\nTASK: Load and analyze the telemetry data.")
         task_parts.append("1. Load the data")
         task_parts.append("2. Inspect quality")
