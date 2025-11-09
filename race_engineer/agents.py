@@ -53,17 +53,38 @@ def supervisor_node(state: RaceEngineerState) -> Dict[str, Any]:
 
     Decides which specialist agent to call next or when to complete.
     """
-    print("\n" + "="*70)
-    print("🎯 SUPERVISOR: Orchestrating analysis workflow")
-    print("="*70)
+    iteration = state['iteration'] + 1
+    max_iter = state['max_iterations']
+    print(f"\n[{iteration}/{max_iter}] 🎯 SUPERVISOR: Routing decision...")
+
+    # CRITICAL FIX: Check if we already have recommendations and should complete
+    agents_consulted = state.get('agents_consulted', [])
+
+    # If setup_engineer already ran, we should complete
+    if 'setup_engineer' in agents_consulted:
+        print("✅ All agents consulted (including setup_engineer) - completing workflow")
+        return {
+            "messages": [],
+            "next_agent": "COMPLETE",
+            "iteration": iteration
+        }
+
+    # If we have candidate recommendations, complete
+    if state.get('candidate_recommendations'):
+        print(f"✅ Found {len(state['candidate_recommendations'])} recommendations - completing workflow")
+        return {
+            "messages": [],
+            "next_agent": "COMPLETE",
+            "iteration": iteration
+        }
 
     llm = create_llm(temperature=0.1)  # Low temp for consistent routing
 
     # Build context message
     context_parts = []
     context_parts.append(f"DRIVER FEEDBACK: {state['driver_feedback']}")
-    context_parts.append(f"\nITERATION: {state['iteration']}/{state['max_iterations']}")
-    context_parts.append(f"AGENTS CONSULTED: {', '.join(state['agents_consulted']) if state['agents_consulted'] else 'none'}")
+    context_parts.append(f"\nITERATION: {iteration}/{max_iter}")
+    context_parts.append(f"AGENTS CONSULTED: {', '.join(agents_consulted) if agents_consulted else 'none'}")
 
     # Add data status
     if state.get('telemetry_data') is not None:
@@ -93,14 +114,14 @@ def supervisor_node(state: RaceEngineerState) -> Dict[str, Any]:
     next_agent = _parse_supervisor_decision(decision_text)
 
     # Check iteration limit
-    if state['iteration'] >= state['max_iterations']:
-        print(f"\n⚠️  Max iterations ({state['max_iterations']}) reached - forcing completion")
+    if iteration > max_iter:
+        print(f"\n⚠️  Max iterations ({max_iter}) reached - forcing completion")
         next_agent = "COMPLETE"
 
     return {
         "messages": [response],
         "next_agent": next_agent.lower() if next_agent != "COMPLETE" else "COMPLETE",
-        "iteration": state['iteration'] + 1
+        "iteration": iteration
     }
 
 
@@ -141,9 +162,9 @@ def data_analyst_node(state: RaceEngineerState) -> Dict[str, Any]:
 
     Uses tools to load data, assess quality, and run statistical analysis.
     """
-    print("\n" + "="*70)
-    print("📊 DATA ANALYST: Analyzing telemetry data")
-    print("="*70)
+    iteration = state['iteration'] + 1
+    max_iter = state['max_iterations']
+    print(f"\n[{iteration}/{max_iter}] 📊 DATA ANALYST: Analyzing data...")
 
     llm = create_llm(temperature=0.3)
 
@@ -231,9 +252,9 @@ def knowledge_expert_node(state: RaceEngineerState) -> Dict[str, Any]:
     """
     Knowledge Expert agent queries setup manuals and historical data.
     """
-    print("\n" + "="*70)
-    print("📚 KNOWLEDGE EXPERT: Consulting setup knowledge")
-    print("="*70)
+    iteration = state['iteration'] + 1
+    max_iter = state['max_iterations']
+    print(f"\n[{iteration}/{max_iter}] 📚 KNOWLEDGE EXPERT: Consulting NASCAR manual...")
 
     llm = create_llm(temperature=0.3)
 
@@ -299,9 +320,31 @@ def setup_engineer_node(state: RaceEngineerState) -> Dict[str, Any]:
 
     NOW WITH DEDUPLICATION - Never suggests the same thing twice!
     """
-    print("\n" + "="*70)
-    print("🔧 SETUP ENGINEER: Generating recommendations")
-    print("="*70)
+    iteration = state['iteration'] + 1
+    max_iter = state['max_iterations']
+    print(f"\n[{iteration}/{max_iter}] 🔧 SETUP ENGINEER: Generating recommendations...")
+
+    # CRITICAL FIX: If we already have candidate recommendations, don't regenerate
+    existing_candidates = state.get('candidate_recommendations', [])
+    if existing_candidates:
+        print(f"\n📋 Found {len(existing_candidates)} existing recommendation(s) - using those")
+        # Just ensure final_recommendation is set from existing candidates
+        if not state.get('final_recommendation'):
+            return {
+                'agents_consulted': state['agents_consulted'] + ['setup_engineer'],
+                'final_recommendation': {
+                    "primary": existing_candidates[0] if existing_candidates else None,
+                    "secondary": existing_candidates[1:] if len(existing_candidates) > 1 else [],
+                    "summary": f"Using {len(existing_candidates)} existing recommendation(s)",
+                    "num_unique": len(existing_candidates),
+                    "num_filtered": 0
+                }
+            }
+        else:
+            # Already have both candidates and final rec, just mark engineer as consulted
+            return {
+                'agents_consulted': state['agents_consulted'] + ['setup_engineer']
+            }
 
     llm = create_llm(temperature=0.3)
 
@@ -475,6 +518,37 @@ def setup_engineer_node(state: RaceEngineerState) -> Dict[str, Any]:
                     "num_unique": len(unique_recs),
                     "num_filtered": len(duplicate_recs)
                 }
+
+    # CRITICAL FIX: Ensure final_recommendation is ALWAYS set
+    if 'final_recommendation' not in updates:
+        # Try to construct from statistical analysis as fallback
+        analysis = state.get('statistical_analysis', {})
+        if analysis.get('top_parameter'):
+            param = analysis['top_parameter']
+            corr = analysis.get('top_correlation', 0)
+            updates['final_recommendation'] = {
+                "primary": {
+                    'parameter': param,
+                    'direction': 'decrease' if corr > 0 else 'increase',
+                    'magnitude': 1.5 if 'psi' in param.lower() else 25,
+                    'magnitude_unit': 'PSI' if 'psi' in param.lower() else 'lb/in',
+                    'rationale': f'Based on correlation analysis ({corr:.3f})',
+                    'confidence': 0.6
+                },
+                "summary": f"Recommended: {'Decrease' if corr > 0 else 'Increase'} {param} based on telemetry correlation",
+                "num_unique": 1,
+                "num_filtered": 0
+            }
+            print("\n⚠️  No agent recommendations - using statistical fallback")
+        else:
+            # Last resort: indicate no recommendation possible
+            updates['final_recommendation'] = {
+                "primary": None,
+                "summary": "Unable to generate recommendation with available data",
+                "num_unique": 0,
+                "num_filtered": 0
+            }
+            print("\n⚠️  Unable to generate recommendations - insufficient data")
 
     updates['messages'] = new_messages
 

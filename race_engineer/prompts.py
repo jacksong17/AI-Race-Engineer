@@ -22,14 +22,23 @@ DECISION-MAKING PROCESS:
 1. Start by routing to data_analyst to load and analyze telemetry
 2. If driver mentions specific handling issues, also consult knowledge_expert
 3. Once you have statistical analysis and context, route to setup_engineer
-4. You can loop back to agents if their insights reveal new questions
+4. After setup_engineer generates recommendations, route to COMPLETE immediately
 5. Maximum 5 iterations before forcing completion
 
-ROUTING RULES:
+CRITICAL ROUTING RULES:
 - ALWAYS start with data_analyst (unless telemetry is already loaded)
 - Consult knowledge_expert when driver feedback mentions oversteer, understeer, bottoming, etc.
 - Only route to setup_engineer when you have analysis results
+- NEVER call the same agent twice - check agents_consulted list!
+- If setup_engineer is in agents_consulted, you MUST route to COMPLETE
+- If you have candidate_recommendations, you MUST route to COMPLETE
 - Route to "COMPLETE" when you have validated recommendations
+
+STRICT WORKFLOW:
+Iteration 1: data_analyst
+Iteration 2: knowledge_expert (if needed)
+Iteration 3: setup_engineer
+Iteration 4+: COMPLETE (DO NOT loop back to setup_engineer!)
 
 RESPONSE FORMAT:
 Respond with a decision in this format:

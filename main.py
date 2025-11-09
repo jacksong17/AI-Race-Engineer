@@ -145,19 +145,49 @@ def display_results(state: dict, verbose: bool = False):
     print("📋 FINAL RESULTS")
     print("="*70)
 
-    # Recommendation
-    if state.get('final_recommendation'):
-        rec = state['final_recommendation']
+    # CRITICAL FIX: Check if we have ANY recommendation data
+    final_rec = state.get('final_recommendation')
+    candidate_recs = state.get('candidate_recommendations', [])
+
+    if not final_rec and not candidate_recs:
+        print("\n⚠️  WARNING: No recommendations were generated")
+        print("   Possible reasons:")
+        print("   - Insufficient data quality")
+        print("   - No significant correlations found")
+        print("   - All parameters violate constraints")
+        print("\n   Review warnings and errors above for details.")
+    elif final_rec:
+        # We have a final recommendation
+        rec = final_rec
         print("\n💡 RECOMMENDATION:")
-        if 'summary' in rec:
-            print(rec['summary'])
-        elif 'primary' in rec and rec['primary']:
+
+        # Try different structures
+        if 'primary' in rec and rec['primary']:
             primary = rec['primary']
-            print(f"\n  Primary Change:")
-            print(f"    • {primary['parameter']}")
-            print(f"    • {primary['direction'].title()} by {primary['magnitude']} {primary['magnitude_unit']}")
-            print(f"    • Rationale: {primary['rationale']}")
-            print(f"    • Confidence: {primary['confidence']:.1%}")
+            print(f"\n  Parameter: {primary.get('parameter', 'Unknown')}")
+            print(f"  Action: {primary.get('direction', '').title()} by {primary.get('magnitude', 0)} {primary.get('magnitude_unit', '')}")
+            if 'confidence' in primary:
+                print(f"  Confidence: {primary['confidence']:.1%}")
+            if 'rationale' in primary:
+                print(f"  Rationale: {primary['rationale']}")
+
+            # Show summary if available
+            if 'summary' in rec:
+                print(f"\n  {rec['summary']}")
+        elif 'summary' in rec:
+            print(f"  {rec['summary']}")
+        else:
+            print("  Recommendation structure incomplete")
+    elif candidate_recs:
+        # Fallback to candidate recommendations
+        print("\n💡 RECOMMENDATION (from candidates):")
+        primary = candidate_recs[0]
+        print(f"\n  Parameter: {primary.get('parameter', 'Unknown')}")
+        print(f"  Action: {primary.get('direction', '').title()} by {primary.get('magnitude', 0)} {primary.get('magnitude_unit', '')}")
+        if 'confidence' in primary:
+            print(f"  Confidence: {primary['confidence']:.1%}")
+        if 'rationale' in primary:
+            print(f"  Rationale: {primary['rationale']}")
 
     # Data quality
     if state.get('data_quality_report') and verbose:
