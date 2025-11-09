@@ -507,36 +507,55 @@ def regression_analysis(
 @tool
 def query_setup_manual(issue_type: str, parameter: Optional[str] = None) -> Dict[str, Any]:
     """
-    Query NASCAR truck setup knowledge base.
+    Query NASCAR truck setup knowledge base from parsed manual.
+
+    Now uses actual NASCAR Trucks Manual V6 content!
 
     Args:
         issue_type: Type of handling issue (oversteer, understeer, etc)
         parameter: Optional specific parameter to get info about
 
     Returns:
-        Dictionary with setup guidance
+        Dictionary with detailed setup guidance from NASCAR manual
     """
-    # Load setup knowledge base
-    knowledge_file = Path(__file__).parent.parent / "data" / "knowledge" / "setup_manual.json"
+    # Load parsed NASCAR manual knowledge
+    knowledge_file = Path(__file__).parent.parent / "data" / "knowledge" / "nascar_manual_knowledge.json"
 
-    if knowledge_file.exists():
+    if not knowledge_file.exists():
+        # Parse manual if not cached
+        from race_engineer.nascar_manual_parser import parse_and_cache_manual
+        pdf_path = Path(__file__).parent.parent / "NASCAR-Trucks-Manual-V6.pdf"
+        knowledge = parse_and_cache_manual(str(pdf_path))
+    else:
         with open(knowledge_file, 'r') as f:
             knowledge = json.load(f)
-    else:
-        # Create default knowledge if file doesn't exist
-        knowledge = _create_default_knowledge()
 
     relevant_sections = []
     principles = []
     parameter_guidance = {}
+    fixes = {}
 
-    # Extract relevant information
-    if issue_type.lower() in knowledge.get('handling_issues', {}):
-        issue_info = knowledge['handling_issues'][issue_type.lower()]
+    # Extract relevant handling issue information
+    issue_key = issue_type.lower().replace(' ', '_')
+    if issue_key in knowledge.get('handling_issues', {}):
+        issue_info = knowledge['handling_issues'][issue_key]
+
         relevant_sections.append(issue_info.get('description', ''))
-        principles.extend(issue_info.get('principles', []))
-        parameter_guidance = issue_info.get('parameter_guidance', {})
+        principles.extend(issue_info.get('symptoms', []))
 
+        # Get specific fixes from manual
+        fixes = issue_info.get('fixes', {})
+
+        # Build parameter guidance from fixes
+        for param, fix_info in fixes.items():
+            parameter_guidance[param] = {
+                'action': fix_info.get('action'),
+                'magnitude': fix_info.get('magnitude'),
+                'rationale': fix_info.get('rationale'),
+                'from_nascar_manual': True
+            }
+
+    # Get specific parameter info if requested
     if parameter and parameter in knowledge.get('parameters', {}):
         param_info = knowledge['parameters'][parameter]
         parameter_guidance[parameter] = param_info
@@ -545,7 +564,9 @@ def query_setup_manual(issue_type: str, parameter: Optional[str] = None) -> Dict
         "relevant_sections": relevant_sections,
         "principles": principles,
         "parameter_guidance": parameter_guidance,
-        "examples": knowledge.get('examples', [])
+        "fixes": fixes,
+        "manual_version": knowledge.get('manual_version', 'V6'),
+        "source": "NASCAR Trucks Manual V6"
     }
 
 
@@ -580,54 +601,146 @@ def search_history(
 def check_constraints(
     parameter: str,
     direction: str,
+    magnitude: float,
+    current_value: Optional[float] = None,
     constraints: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
-    Check if proposed change violates driver constraints.
+    Comprehensive constraint checking against NASCAR manual limits.
+
+    NOW VALIDATES AGAINST ACTUAL NASCAR TRUCKS MANUAL SPECS!
+
+    Checks:
+    1. NASCAR rule limits (from manual)
+    2. Physical limits
+    3. Driver-specified constraints
+    4. Safety margins
 
     Args:
         parameter: Parameter name
         direction: "increase" or "decrease"
-        constraints: Driver constraints dictionary
+        magnitude: Amount of change
+        current_value: Optional current value
+        constraints: Optional driver constraints
 
     Returns:
-        Dictionary with validation results
+        Dictionary with validation results and limit information
     """
-    if not constraints:
-        return {
-            "is_valid": True,
-            "violations": [],
-            "alternative_suggestions": []
-        }
+    # Load NASCAR manual constraints
+    knowledge_file = Path(__file__).parent.parent / "data" / "knowledge" / "nascar_manual_knowledge.json"
+
+    manual_limits = {}
+    if knowledge_file.exists():
+        with open(knowledge_file, 'r') as f:
+            knowledge = json.load(f)
+
+        # Get parameter limits from manual
+        if parameter in knowledge.get('parameters', {}):
+            param_info = knowledge['parameters'][parameter]
+            if 'range' in param_info:
+                manual_limits = {
+                    'min': param_info['range']['min'],
+                    'max': param_info['range']['max'],
+                    'typical_min': param_info.get('typical', {}).get('min'),
+                    'typical_max': param_info.get('typical', {}).get('max'),
+                    'unit': param_info.get('unit', 'units'),
+                    'source': 'NASCAR Trucks Manual V6'
+                }
 
     violations = []
-    alternative_suggestions = []
+    warnings = []
+    proposed_value = None
 
-    # Check if parameter is at limit
-    params_at_limit = constraints.get('parameters_at_limit', {})
-    if parameter in params_at_limit:
-        limit_type = params_at_limit[parameter]
-        if (limit_type == 'min' and direction == 'decrease') or \
-           (limit_type == 'max' and direction == 'increase'):
-            violations.append(f"{parameter} is already at {limit_type} limit")
+    # Calculate proposed value if current is provided
+    if current_value is not None and manual_limits:
+        if direction.lower() == "increase":
+            proposed_value = current_value + magnitude
+        else:
+            proposed_value = current_value - magnitude
 
-    # Check if parameter cannot be adjusted
-    cannot_adjust = constraints.get('cannot_adjust', [])
-    if parameter in cannot_adjust:
-        violations.append(f"{parameter} cannot be adjusted per driver constraints")
+        # Check NASCAR manual limits
+        if proposed_value < manual_limits['min']:
+            violations.append(
+                f"{parameter} would be {proposed_value:.2f} {manual_limits['unit']}, "
+                f"below NASCAR manual minimum of {manual_limits['min']} {manual_limits['unit']}"
+            )
+        elif proposed_value > manual_limits['max']:
+            violations.append(
+                f"{parameter} would be {proposed_value:.2f} {manual_limits['unit']}, "
+                f"above NASCAR manual maximum of {manual_limits['max']} {manual_limits['unit']}"
+            )
 
-    # Check if already tried
-    already_tried = constraints.get('already_tried', [])
-    if parameter in already_tried:
-        violations.append(f"{parameter} was already tried in previous sessions")
+        # Check if approaching limits (within 10%)
+        limit_range = manual_limits['max'] - manual_limits['min']
+        margin_low = manual_limits['min'] + 0.1 * limit_range
+        margin_high = manual_limits['max'] - 0.1 * limit_range
+
+        if proposed_value < margin_low and proposed_value >= manual_limits['min']:
+            margin = proposed_value - manual_limits['min']
+            warnings.append(
+                f"{parameter} approaching minimum limit (margin: {margin:.2f} {manual_limits['unit']})"
+            )
+        elif proposed_value > margin_high and proposed_value <= manual_limits['max']:
+            margin = manual_limits['max'] - proposed_value
+            warnings.append(
+                f"{parameter} approaching maximum limit (margin: {margin:.2f} {manual_limits['unit']})"
+            )
+
+        # Check if outside typical range
+        if manual_limits.get('typical_min') and manual_limits.get('typical_max'):
+            if proposed_value < manual_limits['typical_min']:
+                warnings.append(
+                    f"{parameter} below typical range ({manual_limits['typical_min']}-{manual_limits['typical_max']} {manual_limits['unit']})"
+                )
+            elif proposed_value > manual_limits['typical_max']:
+                warnings.append(
+                    f"{parameter} above typical range ({manual_limits['typical_min']}-{manual_limits['typical_max']} {manual_limits['unit']})"
+                )
+
+    # Check driver constraints if provided
+    if constraints:
+        params_at_limit = constraints.get('parameters_at_limit', {})
+        if parameter in params_at_limit:
+            limit_type = params_at_limit[parameter]
+            if (limit_type == 'min' and direction.lower() == 'decrease') or \
+               (limit_type == 'max' and direction.lower() == 'increase'):
+                violations.append(f"{parameter} is already at {limit_type} limit per driver constraints")
+
+        cannot_adjust = constraints.get('cannot_adjust', [])
+        if parameter in cannot_adjust:
+            violations.append(f"{parameter} cannot be adjusted per driver constraints")
+
+        already_tried = constraints.get('already_tried', [])
+        if parameter in already_tried:
+            warnings.append(f"{parameter} was already tried in previous sessions")
 
     is_valid = len(violations) == 0
 
-    return {
+    result = {
         "is_valid": is_valid,
         "violations": violations,
-        "alternative_suggestions": alternative_suggestions
+        "warnings": warnings,
+        "nascar_manual_limits": manual_limits,
+        "proposed_value": proposed_value,
+        "current_value": current_value,
+        "within_typical_range": True  # Default
     }
+
+    # Calculate margins if we have limits and proposed value
+    if manual_limits and proposed_value is not None:
+        result["margin_to_limits"] = {
+            "min": proposed_value - manual_limits['min'],
+            "max": manual_limits['max'] - proposed_value,
+            "unit": manual_limits.get('unit', 'units')
+        }
+
+        # Check if within typical range
+        if manual_limits.get('typical_min') and manual_limits.get('typical_max'):
+            result["within_typical_range"] = (
+                manual_limits['typical_min'] <= proposed_value <= manual_limits['typical_max']
+            )
+
+    return result
 
 
 @tool
