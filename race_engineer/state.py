@@ -68,6 +68,16 @@ class RaceEngineerState(TypedDict):
        - quality_score: float (0-1)
     """
 
+    # ===== ANALYSIS COMPLETION FLAGS (Prevent Redundant Work) =====
+    data_loaded: bool
+    """Flag: Has telemetry data been loaded?"""
+
+    quality_assessed: bool
+    """Flag: Has data quality assessment been completed?"""
+
+    statistical_analysis_complete: bool
+    """Flag: Has statistical analysis been performed?"""
+
     # ===== ANALYSIS RESULTS =====
     feature_analysis: Optional[Dict[str, Any]]
     """Feature selection and importance:
@@ -128,7 +138,6 @@ class RaceEngineerState(TypedDict):
        - confidence: float
        - rationale: str
        - caveats: List[str]
-       - visualization_paths: List[str]
     """
 
     previous_recommendations: List[Dict[str, Any]]
@@ -198,18 +207,6 @@ class RaceEngineerState(TypedDict):
 
     warnings: List[str]
     """Non-fatal warnings collected during analysis"""
-
-    # ===== OUTPUT =====
-    generated_visualizations: List[str]
-    """Paths to generated visualization files"""
-
-    performance_projection: Optional[Dict[str, Any]]
-    """Projected performance improvement:
-       - baseline_time: float
-       - projected_time: float
-       - improvement: float
-       - confidence_interval: tuple
-    """
 
     # ===== SESSION METADATA =====
     session_id: str
@@ -284,6 +281,11 @@ def create_initial_state(
         "telemetry_data": None,
         "data_quality_report": None,
 
+        # Analysis completion flags
+        "data_loaded": False,
+        "quality_assessed": False,
+        "statistical_analysis_complete": False,
+
         # Analysis
         "feature_analysis": None,
         "statistical_analysis": None,
@@ -314,10 +316,6 @@ def create_initial_state(
         # Error handling
         "errors": [],
         "warnings": [],
-
-        # Output
-        "generated_visualizations": [],
-        "performance_projection": None,
 
         # Metadata
         "session_id": session_id,

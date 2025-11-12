@@ -1,0 +1,98 @@
+{
+  "metadata": {
+    "scenario_name": "Insufficient Data Quality Check",
+    "track": "bristol",
+    "car_class": "nascar_truck",
+    "difficulty": "edge_case",
+    "expected_iterations": 2
+  },
+  "input": {
+    "driver_feedback": "Bit of understeer but haven't tested much yet.",
+    "telemetry_sessions": [
+      {
+        "tire_psi_lf": 29.0,
+        "tire_psi_rf": 30.93,
+        "tire_psi_lr": 30.32,
+        "tire_psi_rr": 30.76,
+        "cross_weight": 51.88,
+        "spring_lf": 919.88,
+        "spring_rf": 920.79,
+        "spring_lr": 195.38,
+        "spring_rr": 194.77,
+        "track_bar_height_left": 12.47,
+        "brake_bias": 57.77,
+        "session_id": "session_01",
+        "fastest_time": 15.625
+      },
+      {
+        "tire_psi_lf": 29.75,
+        "tire_psi_rf": 31.12,
+        "tire_psi_lr": 29.04,
+        "tire_psi_rr": 29.14,
+        "cross_weight": 51.72,
+        "spring_lf": 919.49,
+        "spring_rf": 920.16,
+        "spring_lr": 194.55,
+        "spring_rr": 194.29,
+        "track_bar_height_left": 12.93,
+        "brake_bias": 57.89,
+        "session_id": "session_02",
+        "fastest_time": 15.502
+      },
+      {
+        "tire_psi_lf": 30.5,
+        "tire_psi_rf": 30.29,
+        "tire_psi_lr": 29.73,
+        "tire_psi_rr": 30.06,
+        "cross_weight": 51.42,
+        "spring_lf": 920.19,
+        "spring_rf": 919.7,
+        "spring_lr": 194.85,
+        "spring_rr": 194.7,
+        "track_bar_height_left": 13.13,
+        "brake_bias": 57.99,
+        "session_id": "session_03",
+        "fastest_time": 15.453
+      },
+      {
+        "tire_psi_lf": 31.25,
+        "tire_psi_rf": 31.41,
+        "tire_psi_lr": 29.39,
+        "tire_psi_rr": 30.1,
+        "cross_weight": 51.02,
+        "spring_lf": 919.34,
+        "spring_rf": 920.1,
+        "spring_lr": 195.37,
+        "spring_rr": 195.09,
+        "track_bar_height_left": 12.14,
+        "brake_bias": 57.85,
+        "session_id": "session_04",
+        "fastest_time": 15.322
+      },
+      {
+        "tire_psi_lf": 32.0,
+        "tire_psi_rf": 30.64,
+        "tire_psi_lr": 29.77,
+        "tire_psi_rr": 30.53,
+        "cross_weight": 52.17,
+        "spring_lf": 919.12,
+        "spring_rf": 920.16,
+        "spring_lr": 194.81,
+        "spring_rr": 194.66,
+        "track_bar_height_left": 12.51,
+        "brake_bias": 58.52,
+        "session_id": "session_05",
+        "fastest_time": 15.226
+      }
+    ],
+    "constraints": null
+  },
+  "expected_output": {
+    "quality_gate": "warning",
+    "quality_score_max": 0.7,
+    "confidence_max": 0.6,
+    "recommendations": [
+      "Collect more data sessions"
+    ]
+  }
+}

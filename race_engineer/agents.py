@@ -25,7 +25,6 @@ from race_engineer.tools import (
     search_history,
     check_constraints,
     validate_physics,
-    visualize_impacts,
     save_session
 )
 from race_engineer.recommendation_deduplicator import check_duplicate, filter_unique
@@ -298,25 +297,42 @@ def data_analyst_node(state: RaceEngineerState) -> Dict[str, Any]:
     task_parts.append(f"Driver feedback: {state['driver_feedback']}")
     task_parts.append(f"Telemetry files: {len(state['telemetry_file_paths'])} files")
 
+    # Check caching flags to prevent redundant analysis
     telemetry_data = state.get('telemetry_data')
-    if telemetry_data is None:
+    data_loaded = state.get('data_loaded', False)
+    quality_assessed = state.get('quality_assessed', False)
+    stats_complete = state.get('statistical_analysis_complete', False)
+
+    if not data_loaded:
+        # First time: Load everything
         task_parts.append("\nTASK: Load and analyze the telemetry data.")
         task_parts.append("1. Load the data")
         task_parts.append("2. Inspect quality")
         task_parts.append("3. Clean if needed")
         task_parts.append("4. Select relevant features")
         task_parts.append("5. Run correlation or regression analysis")
-    else:
-        # Data is already loaded - it will be auto-injected into tool calls
+    elif not quality_assessed:
+        # Data loaded but quality not checked
         task_parts.append(f"\nData already loaded: {telemetry_data.get('num_sessions', 0)} sessions")
-        task_parts.append(f"Available parameters: {', '.join(telemetry_data.get('parameters', []))}")
-        task_parts.append("\nTASK: Analyze the loaded data.")
+        task_parts.append("\nTASK: Assess data quality.")
         task_parts.append("1. Call inspect_quality() with no parameters (data is auto-injected)")
-        task_parts.append("2. Call correlation_analysis with these parameters:")
+    elif not stats_complete:
+        # Quality checked, now analyze
+        task_parts.append(f"\nData loaded and quality assessed: {telemetry_data.get('num_sessions', 0)} sessions")
+        task_parts.append(f"Available parameters: {', '.join(telemetry_data.get('parameters', []))}")
+        task_parts.append("\nTASK: Run statistical analysis.")
+        task_parts.append("1. Call correlation_analysis with these parameters:")
         task_parts.append(f"   features={telemetry_data.get('parameters', [])}")
         task_parts.append("   target='fastest_time'")
         task_parts.append("   (data_dict will be auto-injected, don't pass it)")
         task_parts.append("\nIMPORTANT: Do NOT pass data_dict parameter - it is automatically provided.")
+    else:
+        # All analysis complete - skip redundant work
+        print("  ✓ Analysis already complete - skipping redundant work (CACHE HIT)")
+        return {
+            "messages": [],
+            "agents_consulted": state['agents_consulted'] + ['data_analyst'],
+        }
 
     messages = [
         SystemMessage(content=get_data_analyst_prompt()),
@@ -345,10 +361,12 @@ def data_analyst_node(state: RaceEngineerState) -> Dict[str, Any]:
             # Update state based on tool results
             if tool_name == 'load_telemetry' and 'data' in tool_result:
                 updates['telemetry_data'] = tool_result
+                updates['data_loaded'] = True  # Set flag to prevent reloading
                 updates['tools_called'] = state['tools_called'] + ['load_telemetry']
 
             elif tool_name == 'inspect_quality':
                 updates['data_quality_report'] = tool_result
+                updates['quality_assessed'] = True  # Set flag to prevent re-assessment
                 updates['tools_called'] = state['tools_called'] + ['inspect_quality']
 
             elif tool_name == 'select_features':
@@ -357,6 +375,7 @@ def data_analyst_node(state: RaceEngineerState) -> Dict[str, Any]:
 
             elif tool_name in ['correlation_analysis', 'regression_analysis']:
                 updates['statistical_analysis'] = tool_result
+                updates['statistical_analysis_complete'] = True  # Set flag to prevent re-analysis
                 updates['tools_called'] = state['tools_called'] + [tool_name]
 
             # Add tool result to messages
