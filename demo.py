@@ -89,8 +89,14 @@ def load_data_silent():
         return generate_mock_data(), False
 
 
-def run_analysis_silent(df: pd.DataFrame, driver_feedback_dict: dict) -> dict:
-    """Run AI analysis workflow silently in background"""
+def run_analysis_silent(df: pd.DataFrame, driver_feedback_dict: dict, verbose: bool = True) -> dict:
+    """Run AI analysis workflow with optional verbosity control
+
+    Args:
+        df: DataFrame with telemetry data
+        driver_feedback_dict: Driver feedback information
+        verbose: If True (default), show all agent activity. If False, suppress output.
+    """
     from race_engineer import app
     from race_engineer.state import create_initial_state
 
@@ -114,10 +120,15 @@ def run_analysis_silent(df: pd.DataFrame, driver_feedback_dict: dict) -> dict:
     # Add the pre-loaded data to state
     initial_state['telemetry_data'] = df
 
-    # Capture all verbose output from agents
-    captured_output = io.StringIO()
-    with redirect_stdout(captured_output):
+    # Only suppress output if explicitly requested (verbose=False)
+    if verbose:
+        # Show all agent activity in real-time
         state = app.invoke(initial_state)
+    else:
+        # Capture and suppress output
+        captured_output = io.StringIO()
+        with redirect_stdout(captured_output):
+            state = app.invoke(initial_state)
 
     return state
 
@@ -244,8 +255,9 @@ def run_demo(user_input: str = None, verbose: bool = False):
     # Show processing indicator
     print("\nAnalyzing setup data and driver feedback...\n")
 
-    # Run analysis silently in background
-    state = run_analysis_silent(df, driver_feedback_dict)
+    # Run analysis with full observability (always verbose by default)
+    # User can see all agent activity, tool calls, and reasoning steps
+    state = run_analysis_silent(df, driver_feedback_dict, verbose=True)
 
     # Check for errors
     if 'error' in state and state['error']:
