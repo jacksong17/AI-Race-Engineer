@@ -160,8 +160,8 @@ Respond with: "SYNTHESIS: [your unified recommendation]" """
             evaluation = evaluate_recommendation_quality.invoke({
                 'recommendation': final_rec['primary'],
                 'driver_feedback': state['driver_feedback'],
-                'statistical_support': state.get('statistical_analysis', {}),
-                'constraints': state.get('driver_constraints')
+                'statistical_support': state.get('statistical_analysis') or {},
+                'constraints': state.get('driver_constraints') or {}
             })
 
             print(f"  Quality Score: {evaluation['evaluation']['overall_score']:.1f}/10")
@@ -580,21 +580,82 @@ def _build_engineer_context(state):
 
 
 def _generate_final_recommendation(state, tool_results, llm):
-    """Generate structured final recommendation"""
+    """Generate structured final recommendation using all available insights"""
 
-    # Use statistical analysis + tool results to create recommendation
+    # Try statistical analysis first
     stats = state.get('statistical_analysis') or {}
     all_impacts = stats.get('correlations') or stats.get('coefficients', {})
 
-    if not all_impacts:
-        return {"primary": None, "summary": "Insufficient data for recommendation"}
+    if all_impacts:
+        # Use statistical correlations
+        sorted_params = sorted(all_impacts.items(), key=lambda x: abs(x[1]), reverse=True)
+        top_param, top_impact = sorted_params[0]
+        direction = "decrease" if top_impact > 0 else "increase"
+        magnitude, unit = _estimate_magnitude(top_param)
+        rationale = f"Statistical analysis shows {top_impact:+.3f} correlation with lap time"
+        confidence = 0.8 if abs(top_impact) > 0.3 else 0.6
+    else:
+        # Fall back to knowledge expert insights
+        knowledge = state.get('knowledge_insights', {})
+        param_guidance = knowledge.get('parameter_guidance', {})
 
-    # Get top parameter
-    sorted_params = sorted(all_impacts.items(), key=lambda x: abs(x[1]), reverse=True)
-    top_param, top_impact = sorted_params[0]
+        if not param_guidance:
+            # Last resort: provide general balance recommendations
+            return {
+                "primary": {
+                    "parameter": "cross_weight",
+                    "direction": "adjust",
+                    "magnitude": "0.5",
+                    "magnitude_unit": "%",
+                    "confidence": 0.6,
+                    "rationale": "For general handling issues, adjusting cross weight helps balance left/right grip. Start with small 0.5% adjustments and get driver feedback.",
+                    "tool_validations": tool_results
+                },
+                "recommendations": [
+                    {
+                        "parameter": "cross_weight",
+                        "direction": "adjust",
+                        "magnitude": "0.5",
+                        "magnitude_unit": "%"
+                    },
+                    {
+                        "parameter": "tire_pressures",
+                        "direction": "review",
+                        "magnitude": "Check all corners",
+                        "magnitude_unit": ""
+                    },
+                    {
+                        "parameter": "spring_rates",
+                        "direction": "review",
+                        "magnitude": "Verify balance",
+                        "magnitude_unit": ""
+                    }
+                ],
+                "summary": "General handling: Start with cross weight adjustment and review basic balance"
+            }
 
-    direction = "decrease" if top_impact > 0 else "increase"
-    magnitude, unit = _estimate_magnitude(top_param)
+        # Use first parameter from NASCAR manual guidance
+        top_param = list(param_guidance.keys())[0]
+        guidance = param_guidance[top_param]
+        direction = guidance.get('action', 'adjust')
+        magnitude = guidance.get('magnitude', '1-2 units')
+
+        # Extract unit from magnitude if present
+        if 'PSI' in magnitude:
+            unit = 'PSI'
+            # Extract numeric value from magnitude string like "1.0-2.0 PSI"
+            magnitude = magnitude.replace(' PSI', '').split('-')[0]
+        elif 'lb/in' in magnitude:
+            unit = 'lb/in'
+            magnitude = magnitude.replace(' lb/in', '').split('-')[0]
+        elif 'inches' in magnitude:
+            unit = 'inches'
+            magnitude = magnitude.replace(' inches', '').split('-')[0]
+        else:
+            unit = 'units'
+
+        rationale = guidance.get('rationale', 'Based on NASCAR manual guidance')
+        confidence = 0.75  # Medium-high confidence for manual guidance
 
     rec = {
         "primary": {
@@ -602,8 +663,8 @@ def _generate_final_recommendation(state, tool_results, llm):
             "direction": direction,
             "magnitude": magnitude,
             "magnitude_unit": unit,
-            "confidence": 0.8 if abs(top_impact) > 0.3 else 0.6,
-            "rationale": f"Statistical analysis shows {top_impact:+.3f} correlation with lap time",
+            "confidence": confidence,
+            "rationale": rationale,
             "tool_validations": tool_results
         },
         "recommendations": [{
@@ -614,6 +675,18 @@ def _generate_final_recommendation(state, tool_results, llm):
         }],
         "summary": f"Primary: {direction} {top_param} by {magnitude} {unit}"
     }
+
+    # Add secondary recommendations from knowledge insights
+    if not all_impacts:
+        knowledge = state.get('knowledge_insights', {})
+        param_guidance = knowledge.get('parameter_guidance', {})
+        for i, (param, guidance) in enumerate(list(param_guidance.items())[1:3]):  # Get 2nd and 3rd params
+            rec["recommendations"].append({
+                "parameter": param,
+                "direction": guidance.get('action', 'adjust'),
+                "magnitude": guidance.get('magnitude', 'TBD'),
+                "rationale": guidance.get('rationale', '')
+            })
 
     return rec
 

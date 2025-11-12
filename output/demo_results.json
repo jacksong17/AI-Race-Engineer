@@ -1,10 +1,12 @@
 {
-  "user_input": "Car is loose on corner exit",
+  "user_input": "Brakes lock up easily and the car won't turn in",
   "analysis_type": "setup_optimization",
   "focus_areas": [
-    "tire_pressure_rear",
-    "rear_springs",
-    "rear_grip"
+    "front_grip",
+    "tire_pressure_front",
+    "brake_pressure",
+    "brake_bias",
+    "front_springs"
   ],
   "data_source": "real_csv_data",
   "recommendation": "No recommendation",

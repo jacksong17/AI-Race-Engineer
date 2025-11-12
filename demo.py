@@ -220,12 +220,24 @@ def format_output(state: dict, df: pd.DataFrame, request: AnalysisRequest,
             if primary.get('tool_validations'):
                 validations = primary['tool_validations']
                 output_lines.append("   Validation Results:")
-                for tool_name, result in validations.items():
-                    if isinstance(result, dict):
-                        if result.get('is_valid'):
-                            output_lines.append(f"      ✓ {tool_name}: PASSED")
-                        elif 'error' in result:
-                            output_lines.append(f"      ✗ {tool_name}: {result['error']}")
+
+                # Handle both dict and list formats
+                if isinstance(validations, dict):
+                    for tool_name, result in validations.items():
+                        if isinstance(result, dict):
+                            if result.get('is_valid'):
+                                output_lines.append(f"      ✓ {tool_name}: PASSED")
+                            elif 'error' in result:
+                                output_lines.append(f"      ✗ {tool_name}: {result['error']}")
+                elif isinstance(validations, list):
+                    for item in validations:
+                        if isinstance(item, dict):
+                            for tool_name, result in item.items():
+                                if isinstance(result, dict):
+                                    if result.get('is_valid'):
+                                        output_lines.append(f"      ✓ {tool_name}: PASSED")
+                                    elif 'error' in result:
+                                        output_lines.append(f"      ✗ {tool_name}: {result['error']}")
                 output_lines.append("")
         else:
             output_lines.append("   No specific recommendation available")
@@ -273,7 +285,8 @@ def format_output(state: dict, df: pd.DataFrame, request: AnalysisRequest,
 
     # Data source
     data_source = "Real telemetry" if using_real_data else "Mock demo data"
-    output_lines.append(f"Data Source: {data_source} ({len(df)} sessions from {df['track'].iloc[0] if 'track' in df.columns else 'unknown'})")
+    track_name = df['track'].iloc[0] if 'track' in df.columns and len(df) > 0 else 'bristol'
+    output_lines.append(f"Data Source: {data_source} ({len(df)} sessions from {track_name})")
     output_lines.append("")
     output_lines.append("=" * 70)
 
