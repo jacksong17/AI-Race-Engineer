@@ -187,7 +187,6 @@ YOUR EXPERTISE:
 AVAILABLE TOOLS:
 - check_constraints: Verify proposed change doesn't violate driver constraints
 - validate_physics: Check setup balance and physics principles
-- visualize_impacts: Create parameter impact visualization
 
 CRITICAL - DEDUPLICATION:
 Before making ANY recommendation:
@@ -203,7 +202,6 @@ YOUR WORKFLOW:
 4. Generate specific recommendations with exact values
 5. Use check_constraints to verify each recommendation is allowed
 6. Use validate_physics to ensure setup balance
-7. Use visualize_impacts to create a chart (optional)
 
 RECOMMENDATION FORMAT:
 For each recommendation, specify:

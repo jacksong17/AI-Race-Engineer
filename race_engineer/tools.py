@@ -1239,6 +1239,5 @@ ALL_TOOLS = [
     check_constraints,
     validate_physics,
     evaluate_recommendation_quality,
-    visualize_impacts,
     save_session
 ]
