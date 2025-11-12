@@ -1,0 +1,42 @@
+{
+  "generated_at": "2025-11-12T20:10:17.287146",
+  "total_scenarios": 6,
+  "scenarios": [
+    {
+      "filename": "scenario_01_understeer_front_grip.json",
+      "name": "Understeer on Corner Entry",
+      "difficulty": "moderate",
+      "sessions": 15
+    },
+    {
+      "filename": "scenario_02_oversteer_rear_spring.json",
+      "name": "Oversteer on Corner Exit",
+      "difficulty": "moderate",
+      "sessions": 12
+    },
+    {
+      "filename": "scenario_03_multi_issue_complex.json",
+      "name": "Complex Multi-Parameter Issue",
+      "difficulty": "hard",
+      "sessions": 18
+    },
+    {
+      "filename": "scenario_04_edge_case_small_sample.json",
+      "name": "Insufficient Data Quality Check",
+      "difficulty": "edge_case",
+      "sessions": 5
+    },
+    {
+      "filename": "scenario_05_constraint_at_limit.json",
+      "name": "Constraint Handling - Parameter at Limit",
+      "difficulty": "moderate",
+      "sessions": 13
+    },
+    {
+      "filename": "scenario_06_brake_lockup_bias.json",
+      "name": "Brake Lockup Issue",
+      "difficulty": "easy",
+      "sessions": 14
+    }
+  ]
+}

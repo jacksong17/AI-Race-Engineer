@@ -348,20 +348,23 @@ def select_features(
 def correlation_analysis(
     data_dict: Dict[str, Any],
     features: List[str],
-    target: str = "fastest_time"
+    target: str = "fastest_time",
+    confidence_level: float = 0.95
 ) -> Dict[str, Any]:
     """
-    Perform correlation analysis between features and lap time.
+    Perform correlation analysis between features and lap time with confidence intervals.
 
     Args:
         data_dict: Telemetry data
         features: List of parameter names to analyze
         target: Target variable (default: fastest_time)
+        confidence_level: Confidence level for intervals (default: 0.95)
 
     Returns:
         Dictionary with:
         - method: "pearson_correlation"
         - correlations: Correlation coefficients
+        - confidence_intervals: 95% CIs for each correlation
         - p_values: Statistical significance
         - significant_params: Parameters with p < 0.05
         - strength_interpretation: Interpretation of correlations
@@ -370,6 +373,7 @@ def correlation_analysis(
         df = pd.DataFrame(data_dict['data'])
 
         correlations = {}
+        confidence_intervals = {}
         p_values = {}
         significant_params = []
         strength_interpretation = {}
@@ -378,11 +382,36 @@ def correlation_analysis(
             if feature not in df.columns:
                 continue
 
+            # Get clean data
+            feature_data = df[feature].dropna()
+            target_data = df[target].dropna()
+
+            # Align indices
+            common_idx = feature_data.index.intersection(target_data.index)
+            x = df.loc[common_idx, feature]
+            y = df.loc[common_idx, target]
+            n = len(x)
+
             # Calculate Pearson correlation
-            corr, p_val = stats.pearsonr(df[feature].dropna(), df[target].dropna())
+            corr, p_val = stats.pearsonr(x, y)
 
             correlations[feature] = float(corr)
             p_values[feature] = float(p_val)
+
+            # Calculate confidence interval using Fisher Z-transformation
+            if n > 3:
+                z = np.arctanh(corr)  # Fisher Z-transform
+                se = 1 / np.sqrt(n - 3)  # Standard error
+                z_critical = stats.norm.ppf((1 + confidence_level) / 2)
+                z_ci_low = z - z_critical * se
+                z_ci_high = z + z_critical * se
+
+                # Transform back to correlation scale
+                ci_low = float(np.tanh(z_ci_low))
+                ci_high = float(np.tanh(z_ci_high))
+                confidence_intervals[feature] = (ci_low, ci_high)
+            else:
+                confidence_intervals[feature] = (None, None)
 
             # Determine significance
             if p_val < 0.05:
@@ -410,6 +439,8 @@ def correlation_analysis(
         return {
             "method": "pearson_correlation",
             "correlations": correlations,
+            "confidence_intervals": confidence_intervals,
+            "confidence_level": confidence_level,
             "p_values": p_values,
             "significant_params": significant_params,
             "strength_interpretation": strength_interpretation,
@@ -496,6 +527,181 @@ def regression_analysis(
             "top_parameter": sorted_features[0][0] if sorted_features else None,
             "model_quality": quality,
             "intercept": float(model.intercept_)
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@tool
+def calculate_effect_size(
+    data_dict: Dict[str, Any],
+    parameter: str,
+    target: str = "fastest_time",
+    split_method: str = "median"
+) -> Dict[str, Any]:
+    """
+    Calculate Cohen's d effect size for parameter impact.
+
+    Quantifies practical significance beyond statistical significance.
+    Cohen's d interpretation: 0.2 = small, 0.5 = medium, 0.8 = large
+
+    Args:
+        data_dict: Telemetry data
+        parameter: Parameter to analyze
+        target: Target variable (default: fastest_time)
+        split_method: How to split groups ("median", "quartiles")
+
+    Returns:
+        Dictionary with effect size metrics
+    """
+    try:
+        df = pd.DataFrame(data_dict['data'])
+
+        if parameter not in df.columns:
+            return {"error": f"Parameter '{parameter}' not found"}
+
+        # Split into groups
+        if split_method == "median":
+            median_val = df[parameter].median()
+            group_low = df[df[parameter] <= median_val][target]
+            group_high = df[df[parameter] > median_val][target]
+            split_desc = f"below/above median ({median_val:.2f})"
+        elif split_method == "quartiles":
+            q1 = df[parameter].quantile(0.25)
+            q3 = df[parameter].quantile(0.75)
+            group_low = df[df[parameter] <= q1][target]
+            group_high = df[df[parameter] >= q3][target]
+            split_desc = f"Q1 vs Q3 ({q1:.2f} vs {q3:.2f})"
+        else:
+            return {"error": f"Unknown split_method: {split_method}"}
+
+        # Calculate Cohen's d
+        mean_diff = float(group_high.mean() - group_low.mean())
+        pooled_std = float(np.sqrt((group_low.std()**2 + group_high.std()**2) / 2))
+
+        if pooled_std == 0:
+            return {"error": "Zero variance - cannot calculate effect size"}
+
+        cohens_d = mean_diff / pooled_std
+
+        # Interpret effect size
+        abs_d = abs(cohens_d)
+        if abs_d >= 0.8:
+            interpretation = "large"
+        elif abs_d >= 0.5:
+            interpretation = "medium"
+        elif abs_d >= 0.2:
+            interpretation = "small"
+        else:
+            interpretation = "negligible"
+
+        return {
+            "parameter": parameter,
+            "cohens_d": float(cohens_d),
+            "effect_interpretation": interpretation,
+            "mean_difference": mean_diff,
+            "group_low_mean": float(group_low.mean()),
+            "group_high_mean": float(group_high.mean()),
+            "group_low_n": len(group_low),
+            "group_high_n": len(group_high),
+            "split_method": split_desc,
+            "practical_significance": abs_d >= 0.2
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@tool
+def analyze_interactions(
+    data_dict: Dict[str, Any],
+    features: List[str],
+    target: str = "fastest_time",
+    max_interactions: int = 5
+) -> Dict[str, Any]:
+    """
+    Analyze parameter interactions (synergies) using polynomial regression.
+
+    Detects when combining two parameters has greater impact than individual effects.
+    Example: tire_psi × spring_rate interaction affects corner stiffness.
+
+    Args:
+        data_dict: Telemetry data
+        features: List of parameters to analyze
+        target: Target variable (default: fastest_time)
+        max_interactions: Maximum number of top interactions to report
+
+    Returns:
+        Dictionary with interaction analysis results
+    """
+    try:
+        from sklearn.preprocessing import PolynomialFeatures
+
+        df = pd.DataFrame(data_dict['data'])
+
+        # Prepare data
+        available_features = [f for f in features if f in df.columns]
+        if len(available_features) < 2:
+            return {"error": "Need at least 2 features for interaction analysis"}
+
+        X = df[available_features].dropna()
+        y = df.loc[X.index, target]
+
+        # Standardize
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
+
+        # Fit baseline model (no interactions)
+        baseline_model = LinearRegression()
+        baseline_model.fit(X_scaled, y)
+        baseline_r2 = float(baseline_model.score(X_scaled, y))
+
+        # Fit interaction model
+        poly = PolynomialFeatures(degree=2, interaction_only=True, include_bias=False)
+        X_interactions = poly.fit_transform(X_scaled)
+        feature_names = poly.get_feature_names_out(available_features)
+
+        interaction_model = LinearRegression()
+        interaction_model.fit(X_interactions, y)
+        interaction_r2 = float(interaction_model.score(X_interactions, y))
+
+        # R² improvement from interactions
+        r2_gain = interaction_r2 - baseline_r2
+
+        # Extract interaction terms (skip main effects)
+        interaction_terms = {}
+        for idx, name in enumerate(feature_names):
+            if ' ' in name:  # Interaction term (contains space, e.g., "x0 x1")
+                coef = float(interaction_model.coef_[idx])
+                interaction_terms[name] = abs(coef)
+
+        # Sort by importance
+        sorted_interactions = sorted(interaction_terms.items(), key=lambda x: x[1], reverse=True)
+        top_interactions = sorted_interactions[:max_interactions]
+
+        # Interpret
+        if r2_gain > 0.15:
+            interpretation = "strong synergies detected"
+        elif r2_gain > 0.05:
+            interpretation = "moderate synergies detected"
+        elif r2_gain > 0.01:
+            interpretation = "weak synergies detected"
+        else:
+            interpretation = "negligible synergies"
+
+        return {
+            "method": "polynomial_regression_interactions",
+            "baseline_r2": baseline_r2,
+            "interaction_r2": interaction_r2,
+            "r2_gain_from_interactions": r2_gain,
+            "interpretation": interpretation,
+            "top_interactions": [
+                {"term": term, "coefficient": coef}
+                for term, coef in top_interactions
+            ],
+            "num_features": len(available_features),
+            "num_interaction_terms": len(interaction_terms)
         }
 
     except Exception as e:
@@ -890,65 +1096,6 @@ Respond ONLY with valid JSON (no markdown):
 
 
 # ===== OUTPUT TOOLS =====
-
-@tool
-def visualize_impacts(results: Dict[str, Any], output_dir: str = "output/visualizations") -> str:
-    """
-    Generate parameter impact visualization.
-
-    Args:
-        results: Analysis results with parameter impacts
-        output_dir: Directory to save visualization
-
-    Returns:
-        Path to saved visualization file
-    """
-    try:
-        import matplotlib.pyplot as plt
-        import seaborn as sns
-        from pathlib import Path
-
-        Path(output_dir).mkdir(parents=True, exist_ok=True)
-
-        # Extract impacts
-        if 'correlations' in results:
-            impacts = results['correlations']
-            method = "correlation"
-        elif 'coefficients' in results:
-            impacts = results['coefficients']
-            method = "regression"
-        else:
-            return "error: no impacts found in results"
-
-        # Sort and prepare data
-        sorted_impacts = sorted(impacts.items(), key=lambda x: abs(x[1]), reverse=True)[:8]
-        params = [p for p, _ in sorted_impacts]
-        values = [v for _, v in sorted_impacts]
-
-        # Create plot
-        fig, ax = plt.subplots(figsize=(10, 6))
-        colors = ['green' if v < 0 else 'red' for v in values]
-        ax.barh(params, values, color=colors, alpha=0.7)
-
-        ax.set_xlabel(f'Impact on Lap Time ({method})')
-        ax.set_title('Parameter Impact Analysis')
-        ax.axvline(x=0, color='black', linestyle='-', linewidth=0.5)
-        ax.grid(axis='x', alpha=0.3)
-
-        # Save
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"parameter_impacts_{timestamp}.png"
-        filepath = Path(output_dir) / filename
-
-        plt.tight_layout()
-        plt.savefig(filepath, dpi=150, bbox_inches='tight')
-        plt.close()
-
-        return str(filepath)
-
-    except Exception as e:
-        return f"error: {str(e)}"
-
 
 @tool
 def save_session(session_data: Dict[str, Any]) -> Dict[str, Any]:
