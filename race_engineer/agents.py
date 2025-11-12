@@ -584,9 +584,29 @@ def _build_engineer_context(state):
     """Extract relevant context for engineer"""
     parts = [f"Driver feedback: {state['driver_feedback']}"]
 
+    # CRITICAL: Include previous changes mentioned by driver
+    parsed_feedback = state.get('driver_feedback_parsed', {})
+    previous_changes = parsed_feedback.get('previous_changes')
+    lap_time_change = parsed_feedback.get('lap_time_change')
+
+    if previous_changes:
+        parts.append("\n⚠️  PREVIOUS CHANGES MADE BY DRIVER:")
+        for change in previous_changes:
+            parts.append(f"  - {change['direction']}d {change['parameter']} by {change['magnitude']} {change['unit']}")
+
+        if lap_time_change:
+            impact = lap_time_change.get('change_seconds', 0)
+            if impact > 0:
+                parts.append(f"  Result: LAP TIME INCREASED by {abs(impact):.3f}s (WORSE)")
+            else:
+                parts.append(f"  Result: LAP TIME DECREASED by {abs(impact):.3f}s (BETTER)")
+
+        parts.append("\n⚠️  IMPORTANT: If a previous change made things WORSE, recommend REVERSING it!")
+        parts.append("    Do NOT recommend continuing in the same direction that failed!")
+
     if state.get('statistical_analysis'):
         stats = state['statistical_analysis']
-        parts.append(f"Top correlation: {stats.get('top_parameter')} ({stats.get('top_correlation'):.3f})")
+        parts.append(f"\nTop correlation: {stats.get('top_parameter')} ({stats.get('top_correlation'):.3f})")
 
     if state.get('knowledge_insights'):
         parts.append("NASCAR manual guidance: Available")
@@ -600,6 +620,49 @@ def _build_engineer_context(state):
 
 def _generate_final_recommendation(state, tool_results, llm):
     """Generate structured final recommendation using all available insights"""
+
+    # CRITICAL: Check for previous changes that made things worse
+    parsed_feedback = state.get('driver_feedback_parsed', {})
+    previous_changes = parsed_feedback.get('previous_changes')
+    lap_time_change = parsed_feedback.get('lap_time_change')
+
+    # If driver made a change and it made things worse, recommend reversing it
+    if previous_changes and lap_time_change:
+        lap_time_impact = lap_time_change.get('change_seconds', 0)
+
+        # Positive lap time change = slower = worse
+        if lap_time_impact > 0:
+            # The previous change made things worse - recommend reversing it
+            first_change = previous_changes[0]  # Use the first mentioned change
+
+            # Reverse the direction
+            if first_change['direction'] == 'decrease':
+                reversed_direction = 'increase'
+                rationale = f"Previous change ({first_change['direction']}d {first_change['parameter']}) made lap time worse by {lap_time_impact:.3f}s. Reversing the change."
+            else:
+                reversed_direction = 'decrease'
+                rationale = f"Previous change ({first_change['direction']}d {first_change['parameter']}) made lap time worse by {lap_time_impact:.3f}s. Reversing the change."
+
+            return {
+                "primary": {
+                    "parameter": first_change['parameter'],
+                    "direction": reversed_direction,
+                    "magnitude": str(first_change['magnitude']),
+                    "magnitude_unit": first_change['unit'],
+                    "confidence": 0.85,
+                    "rationale": rationale,
+                    "tool_validations": tool_results
+                },
+                "recommendations": [
+                    {
+                        "parameter": first_change['parameter'],
+                        "direction": reversed_direction,
+                        "magnitude": str(first_change['magnitude']),
+                        "magnitude_unit": first_change['unit']
+                    }
+                ],
+                "summary": f"Reverse previous change: {reversed_direction} {first_change['parameter']} by {first_change['magnitude']} {first_change['unit']}"
+            }
 
     # Try statistical analysis first
     stats = state.get('statistical_analysis') or {}

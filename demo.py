@@ -117,6 +117,9 @@ def run_analysis_silent(df: pd.DataFrame, driver_feedback_dict: dict, verbose: b
         }
     )
 
+    # Add parsed driver feedback with previous changes and lap time impact
+    initial_state['driver_feedback_parsed'] = driver_feedback_dict
+
     # Add the pre-loaded data to state in the format expected by tools
     # Convert DataFrame to dict format matching load_telemetry output
     initial_state['telemetry_data'] = {
@@ -160,6 +163,22 @@ def format_output(state: dict, df: pd.DataFrame, request: AnalysisRequest,
         output_lines.append(f"   Issue: {fb.complaint.replace('_', ' ').title()}")
         output_lines.append(f"   Description: {fb.description}")
         output_lines.append(f"   Severity: {fb.severity.title() if hasattr(fb, 'severity') else 'Not specified'}")
+
+        # Show previous changes if mentioned
+        if hasattr(fb, 'previous_changes') and fb.previous_changes:
+            output_lines.append("")
+            output_lines.append("   Previous Changes Made:")
+            for change in fb.previous_changes:
+                output_lines.append(f"      • {change['direction'].title()}d {change['parameter']} by {change['magnitude']} {change['unit']}")
+
+        # Show lap time impact if mentioned
+        if hasattr(fb, 'lap_time_change') and fb.lap_time_change:
+            impact = fb.lap_time_change.get('change_seconds', 0)
+            if impact > 0:
+                output_lines.append(f"   Lap Time Impact: +{impact:.3f}s (slower)")
+            else:
+                output_lines.append(f"   Lap Time Impact: {impact:.3f}s (faster)")
+
         output_lines.append("")
 
     # Data Analysis Findings

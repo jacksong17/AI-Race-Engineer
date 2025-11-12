@@ -33,6 +33,8 @@ class RaceEngineerState(TypedDict):
        - phase: str (entry, mid, exit, straight)
        - description: str
        - concerns: List[str]
+       - previous_changes: List[Dict] (changes mentioned by driver)
+       - lap_time_change: Dict (lap time impact mentioned by driver)
     """
 
     telemetry_file_paths: List[str]

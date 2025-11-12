@@ -16,6 +16,8 @@ class DriverFeedback:
     severity: str  # 'minor', 'moderate', 'severe'
     phase: str  # 'corner_entry', 'mid_corner', 'corner_exit', 'straight'
     raw_input: str
+    previous_changes: Optional[List[Dict[str, any]]] = None  # Changes mentioned in feedback
+    lap_time_change: Optional[Dict[str, float]] = None  # Lap time impact mentioned
 
 
 @dataclass
@@ -35,7 +37,8 @@ class InputRouter:
         'loose_oversteer': [
             r'loose', r'oversteer', r'rear.*slide', r'tail.*out',
             r'back.*end.*come.*around', r'snap.*oversteer',
-            r'rear.*grip', r'unstable.*rear'
+            r'rear.*grip', r'unstable.*rear', r'bouncy', r'bounce',
+            r'unstable', r'skip'
         ],
         'tight_understeer': [
             r'tight', r'understeer', r'push', r'plow',
@@ -151,12 +154,20 @@ class InputRouter:
                 phase = phase_type
                 break
 
+        # Extract previous changes mentioned in feedback
+        previous_changes = self._extract_previous_changes(raw_input, input_lower)
+
+        # Extract lap time changes mentioned in feedback
+        lap_time_change = self._extract_lap_time_change(raw_input, input_lower)
+
         return DriverFeedback(
             complaint=complaint,
             description=raw_input,
             severity=severity,
             phase=phase,
-            raw_input=raw_input
+            raw_input=raw_input,
+            previous_changes=previous_changes,
+            lap_time_change=lap_time_change
         )
 
     def _determine_analysis_type(self, input_lower: str,
@@ -238,13 +249,129 @@ class InputRouter:
         # Default to concise for better UX
         return 'concise'
 
+    def _extract_previous_changes(self, raw_input: str, input_lower: str) -> Optional[List[Dict[str, any]]]:
+        """Extract previous setup changes mentioned in driver feedback
+
+        Examples:
+        - "reduced cross weight by 0.5%"
+        - "increased tire pressure by 2 psi"
+        - "decreased spring rate by 25 lb/in"
+        """
+        changes = []
+
+        # Pattern: (increased|decreased|reduced|raised|lowered) PARAMETER by AMOUNT UNIT
+        # Also handle malformed numbers like "0.%" or ".1" or "0."
+        pattern = r'(increas|decreas|reduc|rais|lower|add|remov)[a-z]*\s+([a-z_\s]+?)\s+by\s+([\d.]+)\s*([a-z/%]*)'
+
+        matches = re.finditer(pattern, input_lower, re.IGNORECASE)
+
+        for match in matches:
+            direction_raw = match.group(1).lower()
+            parameter_raw = match.group(2).strip()
+            magnitude_raw = match.group(3).strip()
+            unit_raw = match.group(4).strip() if match.group(4) else ""
+
+            # Normalize direction
+            if direction_raw in ['increas', 'rais', 'add']:
+                direction = 'increase'
+            elif direction_raw in ['decreas', 'reduc', 'lower', 'remov']:
+                direction = 'decrease'
+            else:
+                direction = direction_raw
+
+            # Normalize parameter name (convert spaces to underscores)
+            parameter = parameter_raw.replace(' ', '_')
+
+            # Fix malformed magnitudes
+            try:
+                # Handle cases like "0." or ".1" or "0.%"
+                if magnitude_raw.startswith('.'):
+                    magnitude_raw = '0' + magnitude_raw
+                elif magnitude_raw.endswith('.'):
+                    # If it's just "0." or "1.", add a zero after the decimal
+                    # But if there's a unit immediately after like "0.%", interpret as "0.5"
+                    if magnitude_raw == '0.' and unit_raw in ['%', 'psi', 'lb/in']:
+                        # Likely meant 0.5 or similar - use 0.5 as default
+                        magnitude_raw = '0.5'
+                    else:
+                        magnitude_raw = magnitude_raw + '0'
+
+                magnitude = float(magnitude_raw)
+
+                # If magnitude is 0, skip this change (but 0.0 from "0." should become 0.5 above)
+                if magnitude == 0:
+                    continue
+
+            except ValueError:
+                # Skip if we can't parse the number
+                continue
+
+            # Normalize unit
+            unit = unit_raw if unit_raw else 'units'
+
+            changes.append({
+                'parameter': parameter,
+                'direction': direction,
+                'magnitude': magnitude,
+                'unit': unit
+            })
+
+        return changes if changes else None
+
+    def _extract_lap_time_change(self, raw_input: str, input_lower: str) -> Optional[Dict[str, float]]:
+        """Extract lap time change mentioned in feedback
+
+        Examples:
+        - "increased lap time by 0.1 seconds"
+        - "lost .2 seconds per lap"
+        - "gained 0.15s"
+        """
+        # Pattern: (increased|decreased|gained|lost) lap time by AMOUNT (seconds|s)
+        # Also match "lap time increased by"
+        patterns = [
+            r'(increas|decreas|gain|los|slow|fast)[a-z]*\s+lap\s+time\s+by\s+([\d.]*\.?[\d]+)\s*(second|s)?',
+            r'lap\s+time\s+(increas|decreas)[a-z]*\s+by\s+([\d.]*\.?[\d]+)\s*(second|s)?',
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, input_lower, re.IGNORECASE)
+            if match:
+                direction_raw = match.group(1).lower()
+                magnitude_raw = match.group(2).strip()
+
+                # Fix malformed magnitudes
+                try:
+                    if magnitude_raw.startswith('.'):
+                        magnitude_raw = '0' + magnitude_raw
+                    elif magnitude_raw.endswith('.'):
+                        magnitude_raw = magnitude_raw + '0'
+
+                    magnitude = float(magnitude_raw)
+
+                    # Normalize direction (positive = slower, negative = faster)
+                    if direction_raw in ['increas', 'slow', 'los']:
+                        change = magnitude  # Positive = worse
+                    else:
+                        change = -magnitude  # Negative = better
+
+                    return {
+                        'change_seconds': change,
+                        'per_lap': True
+                    }
+                except ValueError:
+                    continue
+
+        return None
+
     def create_driver_feedback_dict(self, feedback: DriverFeedback) -> Dict:
         """Convert DriverFeedback to dict format expected by race engineer"""
         return {
             'complaint': feedback.complaint,
             'description': feedback.description,
             'severity': feedback.severity,
-            'phase': feedback.phase
+            'phase': feedback.phase,
+            'previous_changes': feedback.previous_changes,
+            'lap_time_change': feedback.lap_time_change
         }
 
 
