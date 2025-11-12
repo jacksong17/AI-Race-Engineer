@@ -141,7 +141,7 @@ Respond with: "SYNTHESIS: [your unified recommendation]" """
                 HumanMessage(content=synthesis_prompt)
             ])
 
-            print(f"  Synthesis: {synthesis.content[:200]}...")
+            print(f"  Synthesis: {synthesis.content}")
 
             # Update state with synthesis
             state['supervisor_synthesis'] = synthesis.content
@@ -298,7 +298,8 @@ def data_analyst_node(state: RaceEngineerState) -> Dict[str, Any]:
     task_parts.append(f"Driver feedback: {state['driver_feedback']}")
     task_parts.append(f"Telemetry files: {len(state['telemetry_file_paths'])} files")
 
-    if state.get('telemetry_data') is None:
+    telemetry_data = state.get('telemetry_data')
+    if telemetry_data is None:
         task_parts.append("\nTASK: Load and analyze the telemetry data.")
         task_parts.append("1. Load the data")
         task_parts.append("2. Inspect quality")
@@ -306,7 +307,16 @@ def data_analyst_node(state: RaceEngineerState) -> Dict[str, Any]:
         task_parts.append("4. Select relevant features")
         task_parts.append("5. Run correlation or regression analysis")
     else:
-        task_parts.append("\nData already loaded. Perform additional analysis if needed.")
+        # Data is already loaded - it will be auto-injected into tool calls
+        task_parts.append(f"\nData already loaded: {telemetry_data.get('num_sessions', 0)} sessions")
+        task_parts.append(f"Available parameters: {', '.join(telemetry_data.get('parameters', []))}")
+        task_parts.append("\nTASK: Analyze the loaded data.")
+        task_parts.append("1. Call inspect_quality() with no parameters (data is auto-injected)")
+        task_parts.append("2. Call correlation_analysis with these parameters:")
+        task_parts.append(f"   features={telemetry_data.get('parameters', [])}")
+        task_parts.append("   target='fastest_time'")
+        task_parts.append("   (data_dict will be auto-injected, don't pass it)")
+        task_parts.append("\nIMPORTANT: Do NOT pass data_dict parameter - it is automatically provided.")
 
     messages = [
         SystemMessage(content=get_data_analyst_prompt()),
@@ -329,8 +339,8 @@ def data_analyst_node(state: RaceEngineerState) -> Dict[str, Any]:
 
             print(f"   -> {tool_name}({list(tool_args.keys())})")
 
-            # Execute the tool
-            tool_result = _execute_tool(tool_name, tool_args, tools)
+            # Execute the tool (inject state data if needed)
+            tool_result = _execute_tool(tool_name, tool_args, tools, state)
 
             # Update state based on tool results
             if tool_name == 'load_telemetry' and 'data' in tool_result:
@@ -359,7 +369,7 @@ def data_analyst_node(state: RaceEngineerState) -> Dict[str, Any]:
         # Get agent's summary after tools
         summary_response = llm.invoke(messages + new_messages)
         new_messages.append(summary_response)
-        print(f"\n Summary: {summary_response.content[:200]}...")
+        print(f"\n Summary: {summary_response.content}")
 
     updates['messages'] = new_messages
 
@@ -411,7 +421,7 @@ def knowledge_expert_node(state: RaceEngineerState) -> Dict[str, Any]:
 
             print(f"   -> {tool_name}({list(tool_args.keys())})")
 
-            tool_result = _execute_tool(tool_name, tool_args, tools)
+            tool_result = _execute_tool(tool_name, tool_args, tools, state)
 
             if tool_name == 'query_setup_manual':
                 updates['knowledge_insights'] = tool_result
@@ -426,7 +436,7 @@ def knowledge_expert_node(state: RaceEngineerState) -> Dict[str, Any]:
         # Get summary
         summary_response = llm.invoke(messages + new_messages)
         new_messages.append(summary_response)
-        print(f"\n Summary: {summary_response.content[:200]}...")
+        print(f"\n Summary: {summary_response.content}")
 
     updates['messages'] = new_messages
 
@@ -473,7 +483,7 @@ Respond with your reasoning and planned tool calls."""
             HumanMessage(content=think_prompt)
         ])
 
-        print(f"Strategy: {thinking.content[:200]}...")
+        print(f"Strategy: {thinking.content}")
 
         # === ACT PHASE ===
         print("\nACT: Executing tools...")
@@ -493,9 +503,9 @@ Context: {context}"""
         tool_results = []
         if hasattr(action_response, 'tool_calls') and action_response.tool_calls:
             for tc in action_response.tool_calls:
-                result = _execute_tool(tc['name'], tc['args'], [check_constraints, validate_physics])
+                result = _execute_tool(tc['name'], tc['args'], [check_constraints, validate_physics], state)
                 tool_results.append({tc['name']: result})
-                print(f"  {tc['name']}: {str(result)[:100]}...")
+                print(f"  {tc['name']}: {str(result)}")
 
         # === OBSERVE PHASE ===
         print("\nOBSERVE: Reflecting on results...")
@@ -515,7 +525,7 @@ Respond with JSON:
             HumanMessage(content=observe_prompt)
         ])
 
-        print(f"Observation: {observation.content[:200]}...")
+        print(f"Observation: {observation.content}")
 
         # Parse observation
         try:
@@ -688,8 +698,17 @@ def _estimate_magnitude(parameter: str) -> tuple:
 
 # ===== HELPER FUNCTIONS =====
 
-def _execute_tool(tool_name: str, tool_args: Dict[str, Any], tools: List) -> Any:
-    """Execute a tool by name with given arguments"""
+def _execute_tool(tool_name: str, tool_args: Dict[str, Any], tools: List, state: Dict = None) -> Any:
+    """Execute a tool by name with given arguments, auto-injecting state data if needed"""
+
+    # Auto-inject telemetry_data for tools that need it
+    data_tools = ['inspect_quality', 'clean_data', 'select_features', 'correlation_analysis', 'regression_analysis']
+    if state and tool_name in data_tools and 'data_dict' not in tool_args:
+        telemetry_data = state.get('telemetry_data')
+        if telemetry_data:
+            # Inject the telemetry data automatically
+            tool_args = {**tool_args, 'data_dict': telemetry_data}
+
     for tool in tools:
         if tool.name == tool_name:
             try:
