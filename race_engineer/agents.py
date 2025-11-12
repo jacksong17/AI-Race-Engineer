@@ -141,7 +141,7 @@ Respond with: "SYNTHESIS: [your unified recommendation]" """
                 HumanMessage(content=synthesis_prompt)
             ])
 
-            print(f"  Synthesis: {synthesis.content[:200]}...")
+            print(f"  Synthesis: {synthesis.content}")
 
             # Update state with synthesis
             state['supervisor_synthesis'] = synthesis.content
@@ -160,8 +160,8 @@ Respond with: "SYNTHESIS: [your unified recommendation]" """
             evaluation = evaluate_recommendation_quality.invoke({
                 'recommendation': final_rec['primary'],
                 'driver_feedback': state['driver_feedback'],
-                'statistical_support': state.get('statistical_analysis', {}),
-                'constraints': state.get('driver_constraints')
+                'statistical_support': state.get('statistical_analysis') or {},
+                'constraints': state.get('driver_constraints') or {}
             })
 
             print(f"  Quality Score: {evaluation['evaluation']['overall_score']:.1f}/10")
@@ -298,7 +298,8 @@ def data_analyst_node(state: RaceEngineerState) -> Dict[str, Any]:
     task_parts.append(f"Driver feedback: {state['driver_feedback']}")
     task_parts.append(f"Telemetry files: {len(state['telemetry_file_paths'])} files")
 
-    if state.get('telemetry_data') is None:
+    telemetry_data = state.get('telemetry_data')
+    if telemetry_data is None:
         task_parts.append("\nTASK: Load and analyze the telemetry data.")
         task_parts.append("1. Load the data")
         task_parts.append("2. Inspect quality")
@@ -306,7 +307,16 @@ def data_analyst_node(state: RaceEngineerState) -> Dict[str, Any]:
         task_parts.append("4. Select relevant features")
         task_parts.append("5. Run correlation or regression analysis")
     else:
-        task_parts.append("\nData already loaded. Perform additional analysis if needed.")
+        # Data is already loaded - it will be auto-injected into tool calls
+        task_parts.append(f"\nData already loaded: {telemetry_data.get('num_sessions', 0)} sessions")
+        task_parts.append(f"Available parameters: {', '.join(telemetry_data.get('parameters', []))}")
+        task_parts.append("\nTASK: Analyze the loaded data.")
+        task_parts.append("1. Call inspect_quality() with no parameters (data is auto-injected)")
+        task_parts.append("2. Call correlation_analysis with these parameters:")
+        task_parts.append(f"   features={telemetry_data.get('parameters', [])}")
+        task_parts.append("   target='fastest_time'")
+        task_parts.append("   (data_dict will be auto-injected, don't pass it)")
+        task_parts.append("\nIMPORTANT: Do NOT pass data_dict parameter - it is automatically provided.")
 
     messages = [
         SystemMessage(content=get_data_analyst_prompt()),
@@ -329,8 +339,8 @@ def data_analyst_node(state: RaceEngineerState) -> Dict[str, Any]:
 
             print(f"   -> {tool_name}({list(tool_args.keys())})")
 
-            # Execute the tool
-            tool_result = _execute_tool(tool_name, tool_args, tools)
+            # Execute the tool (inject state data if needed)
+            tool_result = _execute_tool(tool_name, tool_args, tools, state)
 
             # Update state based on tool results
             if tool_name == 'load_telemetry' and 'data' in tool_result:
@@ -359,7 +369,7 @@ def data_analyst_node(state: RaceEngineerState) -> Dict[str, Any]:
         # Get agent's summary after tools
         summary_response = llm.invoke(messages + new_messages)
         new_messages.append(summary_response)
-        print(f"\n Summary: {summary_response.content[:200]}...")
+        print(f"\n Summary: {summary_response.content}")
 
     updates['messages'] = new_messages
 
@@ -411,7 +421,7 @@ def knowledge_expert_node(state: RaceEngineerState) -> Dict[str, Any]:
 
             print(f"   -> {tool_name}({list(tool_args.keys())})")
 
-            tool_result = _execute_tool(tool_name, tool_args, tools)
+            tool_result = _execute_tool(tool_name, tool_args, tools, state)
 
             if tool_name == 'query_setup_manual':
                 updates['knowledge_insights'] = tool_result
@@ -426,7 +436,7 @@ def knowledge_expert_node(state: RaceEngineerState) -> Dict[str, Any]:
         # Get summary
         summary_response = llm.invoke(messages + new_messages)
         new_messages.append(summary_response)
-        print(f"\n Summary: {summary_response.content[:200]}...")
+        print(f"\n Summary: {summary_response.content}")
 
     updates['messages'] = new_messages
 
@@ -473,7 +483,7 @@ Respond with your reasoning and planned tool calls."""
             HumanMessage(content=think_prompt)
         ])
 
-        print(f"Strategy: {thinking.content[:200]}...")
+        print(f"Strategy: {thinking.content}")
 
         # === ACT PHASE ===
         print("\nACT: Executing tools...")
@@ -493,9 +503,9 @@ Context: {context}"""
         tool_results = []
         if hasattr(action_response, 'tool_calls') and action_response.tool_calls:
             for tc in action_response.tool_calls:
-                result = _execute_tool(tc['name'], tc['args'], [check_constraints, validate_physics])
+                result = _execute_tool(tc['name'], tc['args'], [check_constraints, validate_physics], state)
                 tool_results.append({tc['name']: result})
-                print(f"  {tc['name']}: {str(result)[:100]}...")
+                print(f"  {tc['name']}: {str(result)}")
 
         # === OBSERVE PHASE ===
         print("\nOBSERVE: Reflecting on results...")
@@ -515,7 +525,7 @@ Respond with JSON:
             HumanMessage(content=observe_prompt)
         ])
 
-        print(f"Observation: {observation.content[:200]}...")
+        print(f"Observation: {observation.content}")
 
         # Parse observation
         try:
@@ -570,21 +580,82 @@ def _build_engineer_context(state):
 
 
 def _generate_final_recommendation(state, tool_results, llm):
-    """Generate structured final recommendation"""
+    """Generate structured final recommendation using all available insights"""
 
-    # Use statistical analysis + tool results to create recommendation
-    stats = state.get('statistical_analysis', {})
+    # Try statistical analysis first
+    stats = state.get('statistical_analysis') or {}
     all_impacts = stats.get('correlations') or stats.get('coefficients', {})
 
-    if not all_impacts:
-        return {"primary": None, "summary": "Insufficient data for recommendation"}
+    if all_impacts:
+        # Use statistical correlations
+        sorted_params = sorted(all_impacts.items(), key=lambda x: abs(x[1]), reverse=True)
+        top_param, top_impact = sorted_params[0]
+        direction = "decrease" if top_impact > 0 else "increase"
+        magnitude, unit = _estimate_magnitude(top_param)
+        rationale = f"Statistical analysis shows {top_impact:+.3f} correlation with lap time"
+        confidence = 0.8 if abs(top_impact) > 0.3 else 0.6
+    else:
+        # Fall back to knowledge expert insights
+        knowledge = state.get('knowledge_insights', {})
+        param_guidance = knowledge.get('parameter_guidance', {})
 
-    # Get top parameter
-    sorted_params = sorted(all_impacts.items(), key=lambda x: abs(x[1]), reverse=True)
-    top_param, top_impact = sorted_params[0]
+        if not param_guidance:
+            # Last resort: provide general balance recommendations
+            return {
+                "primary": {
+                    "parameter": "cross_weight",
+                    "direction": "adjust",
+                    "magnitude": "0.5",
+                    "magnitude_unit": "%",
+                    "confidence": 0.6,
+                    "rationale": "For general handling issues, adjusting cross weight helps balance left/right grip. Start with small 0.5% adjustments and get driver feedback.",
+                    "tool_validations": tool_results
+                },
+                "recommendations": [
+                    {
+                        "parameter": "cross_weight",
+                        "direction": "adjust",
+                        "magnitude": "0.5",
+                        "magnitude_unit": "%"
+                    },
+                    {
+                        "parameter": "tire_pressures",
+                        "direction": "review",
+                        "magnitude": "Check all corners",
+                        "magnitude_unit": ""
+                    },
+                    {
+                        "parameter": "spring_rates",
+                        "direction": "review",
+                        "magnitude": "Verify balance",
+                        "magnitude_unit": ""
+                    }
+                ],
+                "summary": "General handling: Start with cross weight adjustment and review basic balance"
+            }
 
-    direction = "decrease" if top_impact > 0 else "increase"
-    magnitude, unit = _estimate_magnitude(top_param)
+        # Use first parameter from NASCAR manual guidance
+        top_param = list(param_guidance.keys())[0]
+        guidance = param_guidance[top_param]
+        direction = guidance.get('action', 'adjust')
+        magnitude = guidance.get('magnitude', '1-2 units')
+
+        # Extract unit from magnitude if present
+        if 'PSI' in magnitude:
+            unit = 'PSI'
+            # Extract numeric value from magnitude string like "1.0-2.0 PSI"
+            magnitude = magnitude.replace(' PSI', '').split('-')[0]
+        elif 'lb/in' in magnitude:
+            unit = 'lb/in'
+            magnitude = magnitude.replace(' lb/in', '').split('-')[0]
+        elif 'inches' in magnitude:
+            unit = 'inches'
+            magnitude = magnitude.replace(' inches', '').split('-')[0]
+        else:
+            unit = 'units'
+
+        rationale = guidance.get('rationale', 'Based on NASCAR manual guidance')
+        confidence = 0.75  # Medium-high confidence for manual guidance
 
     rec = {
         "primary": {
@@ -592,8 +663,8 @@ def _generate_final_recommendation(state, tool_results, llm):
             "direction": direction,
             "magnitude": magnitude,
             "magnitude_unit": unit,
-            "confidence": 0.8 if abs(top_impact) > 0.3 else 0.6,
-            "rationale": f"Statistical analysis shows {top_impact:+.3f} correlation with lap time",
+            "confidence": confidence,
+            "rationale": rationale,
             "tool_validations": tool_results
         },
         "recommendations": [{
@@ -604,6 +675,18 @@ def _generate_final_recommendation(state, tool_results, llm):
         }],
         "summary": f"Primary: {direction} {top_param} by {magnitude} {unit}"
     }
+
+    # Add secondary recommendations from knowledge insights
+    if not all_impacts:
+        knowledge = state.get('knowledge_insights', {})
+        param_guidance = knowledge.get('parameter_guidance', {})
+        for i, (param, guidance) in enumerate(list(param_guidance.items())[1:3]):  # Get 2nd and 3rd params
+            rec["recommendations"].append({
+                "parameter": param,
+                "direction": guidance.get('action', 'adjust'),
+                "magnitude": guidance.get('magnitude', 'TBD'),
+                "rationale": guidance.get('rationale', '')
+            })
 
     return rec
 
@@ -688,8 +771,17 @@ def _estimate_magnitude(parameter: str) -> tuple:
 
 # ===== HELPER FUNCTIONS =====
 
-def _execute_tool(tool_name: str, tool_args: Dict[str, Any], tools: List) -> Any:
-    """Execute a tool by name with given arguments"""
+def _execute_tool(tool_name: str, tool_args: Dict[str, Any], tools: List, state: Dict = None) -> Any:
+    """Execute a tool by name with given arguments, auto-injecting state data if needed"""
+
+    # Auto-inject telemetry_data for tools that need it
+    data_tools = ['inspect_quality', 'clean_data', 'select_features', 'correlation_analysis', 'regression_analysis']
+    if state and tool_name in data_tools and 'data_dict' not in tool_args:
+        telemetry_data = state.get('telemetry_data')
+        if telemetry_data:
+            # Inject the telemetry data automatically
+            tool_args = {**tool_args, 'data_dict': telemetry_data}
+
     for tool in tools:
         if tool.name == tool_name:
             try:
@@ -720,17 +812,21 @@ def _detect_conflicts(insights: Dict) -> List[str]:
     conflicts = []
 
     # Example: Data says X but knowledge says Y
-    data_top = insights.get('data', {}).get('top_parameter')
+    data_insight = insights.get('data')
+    data_top = data_insight.get('top_parameter') if isinstance(data_insight, dict) else None
 
-    if insights.get('knowledge'):
-        knowledge_params = insights['knowledge'].get('parameter_guidance', {})
+    knowledge_insight = insights.get('knowledge')
+    if isinstance(knowledge_insight, dict):
+        knowledge_params = knowledge_insight.get('parameter_guidance', {})
         if data_top and data_top not in knowledge_params:
             conflicts.append(f"Data suggests {data_top} but knowledge has no guidance on it")
 
     # Check if recommendations conflict with constraints
     recs = insights.get('recommendations', [])
+    if recs is None:
+        recs = []
     for rec in recs:
-        if rec.get('constraint_violations'):
+        if isinstance(rec, dict) and rec.get('constraint_violations'):
             conflicts.append(f"{rec['parameter']}: Violates constraints")
 
     return conflicts

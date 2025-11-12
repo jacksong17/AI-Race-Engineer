@@ -89,8 +89,14 @@ def load_data_silent():
         return generate_mock_data(), False
 
 
-def run_analysis_silent(df: pd.DataFrame, driver_feedback_dict: dict) -> dict:
-    """Run AI analysis workflow silently in background"""
+def run_analysis_silent(df: pd.DataFrame, driver_feedback_dict: dict, verbose: bool = True) -> dict:
+    """Run AI analysis workflow with optional verbosity control
+
+    Args:
+        df: DataFrame with telemetry data
+        driver_feedback_dict: Driver feedback information
+        verbose: If True (default), show all agent activity. If False, suppress output.
+    """
     from race_engineer import app
     from race_engineer.state import create_initial_state
 
@@ -111,91 +117,177 @@ def run_analysis_silent(df: pd.DataFrame, driver_feedback_dict: dict) -> dict:
         }
     )
 
-    # Add the pre-loaded data to state
-    initial_state['telemetry_data'] = df
+    # Add the pre-loaded data to state in the format expected by tools
+    # Convert DataFrame to dict format matching load_telemetry output
+    initial_state['telemetry_data'] = {
+        "data": df.to_dict(orient='records'),
+        "data_columns": list(df.columns),
+        "num_sessions": len(df),
+        "parameters": [col for col in df.columns if col not in ['fastest_time', 'track', 'session_id']],
+        "source_format": "csv_data",
+        "load_warnings": []
+    }
 
-    # Capture all verbose output from agents
-    captured_output = io.StringIO()
-    with redirect_stdout(captured_output):
+    # Only suppress output if explicitly requested (verbose=False)
+    if verbose:
+        # Show all agent activity in real-time
         state = app.invoke(initial_state)
+    else:
+        # Capture and suppress output
+        captured_output = io.StringIO()
+        with redirect_stdout(captured_output):
+            state = app.invoke(initial_state)
 
     return state
 
 
 def format_output(state: dict, df: pd.DataFrame, request: AnalysisRequest,
                   using_real_data: bool, verbose: bool = False) -> str:
-    """Enhanced output with NASCAR manual constraints and deduplication info"""
+    """Comprehensive output with complete findings and actionable recommendations"""
 
     output_lines = []
 
     # Header
-    output_lines.append("=" * 70)
-    output_lines.append("AI RACE ENGINEER - NASCAR Trucks Setup Analysis")
+    output_lines.append("\n" + "=" * 70)
+    output_lines.append("AI RACE ENGINEER - FINAL ANALYSIS REPORT")
     output_lines.append("=" * 70)
     output_lines.append("")
 
     # Driver feedback summary
     if request.driver_feedback:
         fb = request.driver_feedback
-        output_lines.append(f"Driver Feedback: {fb.complaint.replace('_', ' ').title()}")
-        output_lines.append(f"   {fb.description}")
+        output_lines.append("DRIVER FEEDBACK:")
+        output_lines.append(f"   Issue: {fb.complaint.replace('_', ' ').title()}")
+        output_lines.append(f"   Description: {fb.description}")
+        output_lines.append(f"   Severity: {fb.severity.title() if hasattr(fb, 'severity') else 'Not specified'}")
         output_lines.append("")
 
-    # Primary recommendation
+    # Data Analysis Findings
+    output_lines.append("DATA ANALYSIS FINDINGS:")
+    analysis = state.get('statistical_analysis', {})
+    if analysis:
+        method = analysis.get('method', 'correlation')
+        output_lines.append(f"   Analysis Method: {method.title()}")
+
+        all_impacts = analysis.get('correlations') or analysis.get('coefficients', {})
+        if all_impacts:
+            sorted_impacts = sorted(all_impacts.items(), key=lambda x: abs(x[1]), reverse=True)
+            output_lines.append(f"   Parameters Analyzed: {len(all_impacts)}")
+            output_lines.append(f"   Sessions Analyzed: {len(df)}")
+            output_lines.append("")
+            output_lines.append("   Top 5 Impactful Parameters:")
+            for i, (param, impact) in enumerate(sorted_impacts[:5], 1):
+                direction = "Reduce" if impact > 0 else "Increase"
+                output_lines.append(f"      {i}. {param:25s}  {direction:8s}  (correlation: {impact:+.3f})")
+    else:
+        output_lines.append("   No statistical analysis available")
+    output_lines.append("")
+
+    # Knowledge Expert Insights
+    knowledge_insights = state.get('knowledge_insights', {})
+    if knowledge_insights:
+        output_lines.append("KNOWLEDGE EXPERT INSIGHTS:")
+        param_guidance = knowledge_insights.get('parameter_guidance', {})
+        if param_guidance:
+            output_lines.append(f"   NASCAR Manual Guidance: {len(param_guidance)} parameters")
+            for param, guidance in list(param_guidance.items())[:3]:
+                output_lines.append(f"      • {param}: {guidance}")
+        output_lines.append("")
+
+    # Primary Recommendation
+    output_lines.append("=" * 70)
+    output_lines.append("PRIMARY SETUP RECOMMENDATION")
+    output_lines.append("=" * 70)
+
     if state.get('final_recommendation'):
         final_rec = state['final_recommendation']
         primary = final_rec.get('primary')
 
         if primary:
-            output_lines.append("PRIMARY RECOMMENDATION:")
             param_display = primary['parameter'].replace('_', ' ').title()
-            output_lines.append(f"   {param_display}")
-            output_lines.append(f"   {primary['direction'].title()} by {primary['magnitude']} {primary.get('magnitude_unit', 'units')}")
-            output_lines.append("")
-
-            # Expected impact
-            output_lines.append(f"   Expected Impact: {primary.get('expected_impact', 'Improve lap time')}")
+            output_lines.append(f"   Parameter:  {param_display}")
+            output_lines.append(f"   Action:     {primary['direction'].title()} by {primary['magnitude']} {primary.get('magnitude_unit', 'units')}")
             output_lines.append(f"   Confidence: {int(primary.get('confidence', 0.8) * 100)}%")
             output_lines.append("")
 
             # Rationale
             rationale = primary.get('rationale', 'Based on statistical correlation with lap time')
-            output_lines.append(f"   Why: {rationale}")
+            output_lines.append(f"   Rationale:")
+            output_lines.append(f"      {rationale}")
+            output_lines.append("")
+
+            # Tool validations
+            if primary.get('tool_validations'):
+                validations = primary['tool_validations']
+                output_lines.append("   Validation Results:")
+
+                # Handle both dict and list formats
+                if isinstance(validations, dict):
+                    for tool_name, result in validations.items():
+                        if isinstance(result, dict):
+                            if result.get('is_valid'):
+                                output_lines.append(f"      ✓ {tool_name}: PASSED")
+                            elif 'error' in result:
+                                output_lines.append(f"      ✗ {tool_name}: {result['error']}")
+                elif isinstance(validations, list):
+                    for item in validations:
+                        if isinstance(item, dict):
+                            for tool_name, result in item.items():
+                                if isinstance(result, dict):
+                                    if result.get('is_valid'):
+                                        output_lines.append(f"      ✓ {tool_name}: PASSED")
+                                    elif 'error' in result:
+                                        output_lines.append(f"      ✗ {tool_name}: {result['error']}")
+                output_lines.append("")
+        else:
+            output_lines.append("   No specific recommendation available")
             output_lines.append("")
     else:
-        output_lines.append("WARNING: No recommendation generated")
+        output_lines.append("   WARNING: No recommendation generated")
         output_lines.append("")
 
-    # Top impactful parameters
-    analysis = state.get('statistical_analysis', {})
-    if analysis and verbose:
-        all_impacts = analysis.get('correlations') or analysis.get('coefficients', {})
-        if all_impacts:
-            sorted_impacts = sorted(all_impacts.items(), key=lambda x: abs(x[1]), reverse=True)
-
-            output_lines.append("PARAMETER IMPACTS:")
-            for param, impact in sorted_impacts[:5]:
-                direction = "v" if impact > 0 else "^"
-                action = "Reduce" if impact > 0 else "Increase"
-                output_lines.append(f"   {direction} {param:25s}  {action:8s}  ({impact:+.3f})")
+    # Secondary Recommendations
+    if state.get('final_recommendation') and state['final_recommendation'].get('recommendations'):
+        recs = state['final_recommendation']['recommendations']
+        if len(recs) > 0:
+            output_lines.append("SECONDARY RECOMMENDATIONS:")
+            for i, rec in enumerate(recs[:3], 1):
+                if isinstance(rec, dict):
+                    param = rec.get('parameter', 'Unknown').replace('_', ' ').title()
+                    direction = rec.get('direction', '').title()
+                    output_lines.append(f"   {i}. {param}: {direction}")
             output_lines.append("")
 
-    # Performance summary
+    # Performance Summary
     best_time = float(df['fastest_time'].min())
     baseline_time = float(df['fastest_time'].max())
     improvement = baseline_time - best_time
 
-    output_lines.append("PERFORMANCE:")
-    output_lines.append(f"   Current Best:  {best_time:.3f}s")
-    output_lines.append(f"   Potential:     {best_time - 0.050:.3f}s  (down 0.050s with setup change)")
+    output_lines.append("=" * 70)
+    output_lines.append("PERFORMANCE SUMMARY")
+    output_lines.append("=" * 70)
+    output_lines.append(f"   Current Best Lap:    {best_time:.3f}s")
+    output_lines.append(f"   Current Worst Lap:   {baseline_time:.3f}s")
+    output_lines.append(f"   Current Spread:      {improvement:.3f}s")
+    output_lines.append(f"   Estimated Potential: {best_time - 0.050:.3f}s  (improvement: 0.050s)")
+    output_lines.append("")
+
+    # Next Steps
+    output_lines.append("=" * 70)
+    output_lines.append("NEXT STEPS")
+    output_lines.append("=" * 70)
+    output_lines.append("   1. Implement the primary recommendation in your setup")
+    output_lines.append("   2. Run 3-5 test laps to evaluate the change")
+    output_lines.append("   3. Collect driver feedback on handling improvement")
+    output_lines.append("   4. If positive, consider secondary recommendations")
+    output_lines.append("   5. Document changes and lap times for future reference")
     output_lines.append("")
 
     # Data source
-    if verbose:
-        data_source = "Real telemetry" if using_real_data else "Mock demo data"
-        output_lines.append(f"Data: {data_source} ({len(df)} sessions)")
-        output_lines.append("")
-
+    data_source = "Real telemetry" if using_real_data else "Mock demo data"
+    track_name = df['track'].iloc[0] if 'track' in df.columns and len(df) > 0 else 'bristol'
+    output_lines.append(f"Data Source: {data_source} ({len(df)} sessions from {track_name})")
+    output_lines.append("")
     output_lines.append("=" * 70)
 
     return "\n".join(output_lines)
@@ -244,8 +336,9 @@ def run_demo(user_input: str = None, verbose: bool = False):
     # Show processing indicator
     print("\nAnalyzing setup data and driver feedback...\n")
 
-    # Run analysis silently in background
-    state = run_analysis_silent(df, driver_feedback_dict)
+    # Run analysis with full observability (always verbose by default)
+    # User can see all agent activity, tool calls, and reasoning steps
+    state = run_analysis_silent(df, driver_feedback_dict, verbose=True)
 
     # Check for errors
     if 'error' in state and state['error']:
