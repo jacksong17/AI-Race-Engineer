@@ -573,7 +573,7 @@ def _generate_final_recommendation(state, tool_results, llm):
     """Generate structured final recommendation"""
 
     # Use statistical analysis + tool results to create recommendation
-    stats = state.get('statistical_analysis', {})
+    stats = state.get('statistical_analysis') or {}
     all_impacts = stats.get('correlations') or stats.get('coefficients', {})
 
     if not all_impacts:
@@ -720,17 +720,21 @@ def _detect_conflicts(insights: Dict) -> List[str]:
     conflicts = []
 
     # Example: Data says X but knowledge says Y
-    data_top = insights.get('data', {}).get('top_parameter')
+    data_insight = insights.get('data')
+    data_top = data_insight.get('top_parameter') if isinstance(data_insight, dict) else None
 
-    if insights.get('knowledge'):
-        knowledge_params = insights['knowledge'].get('parameter_guidance', {})
+    knowledge_insight = insights.get('knowledge')
+    if isinstance(knowledge_insight, dict):
+        knowledge_params = knowledge_insight.get('parameter_guidance', {})
         if data_top and data_top not in knowledge_params:
             conflicts.append(f"Data suggests {data_top} but knowledge has no guidance on it")
 
     # Check if recommendations conflict with constraints
     recs = insights.get('recommendations', [])
+    if recs is None:
+        recs = []
     for rec in recs:
-        if rec.get('constraint_violations'):
+        if isinstance(rec, dict) and rec.get('constraint_violations'):
             conflicts.append(f"{rec['parameter']}: Violates constraints")
 
     return conflicts
