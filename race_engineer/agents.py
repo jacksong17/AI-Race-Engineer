@@ -31,6 +31,9 @@ from race_engineer.tools import (
 from race_engineer.recommendation_deduplicator import check_duplicate, filter_unique
 import re
 import json
+from time import time
+from functools import wraps
+from datetime import datetime
 
 
 def create_llm(temperature: float = 0.3) -> ChatAnthropic:
@@ -45,11 +48,49 @@ def create_llm(temperature: float = 0.3) -> ChatAnthropic:
     )
 
 
+def track_agent_metrics(agent_name: str):
+    """Decorator to track agent performance metrics"""
+    def decorator(agent_func):
+        @wraps(agent_func)
+        def wrapper(state: RaceEngineerState):
+            start_time = time()
+
+            # Call agent
+            result = agent_func(state)
+
+            end_time = time()
+            duration = end_time - start_time
+
+            # Track metrics
+            metrics = state.get('agent_metrics', {})
+            metrics[agent_name] = {
+                'duration_seconds': round(duration, 2),
+                'tool_calls': len(state.get('tools_called', [])) - len(metrics),  # Incremental
+                'timestamp': datetime.now().isoformat()
+            }
+
+            # Estimate cost (Haiku: $0.25 per 1M input tokens, ~1K tokens per call)
+            estimated_tokens = 1500  # Conservative estimate
+            cost_per_token = 0.00000025  # $0.25 / 1M
+            cost = estimated_tokens * cost_per_token
+
+            metrics[agent_name]['cost_estimate'] = round(cost, 4)
+
+            result['agent_metrics'] = metrics
+            result['total_cost_estimate'] = state.get('total_cost_estimate', 0) + cost
+
+            print(f"\nMetrics: {agent_name} - {duration:.2f}s, ~${cost:.4f}")
+
+            return result
+        return wrapper
+    return decorator
+
+
 # ===== SUPERVISOR AGENT =====
 
 def supervisor_node(state: RaceEngineerState) -> Dict[str, Any]:
     """
-    Supervisor agent orchestrates the workflow.
+    Supervisor agent orchestrates the workflow with LM-as-judge quality gate.
 
     Decides which specialist agent to call next or when to complete.
     """
@@ -60,8 +101,86 @@ def supervisor_node(state: RaceEngineerState) -> Dict[str, Any]:
     # CRITICAL FIX: Check if we already have recommendations and should complete
     agents_consulted = state.get('agents_consulted', [])
 
-    # If setup_engineer already ran, we should complete
+    # SYNTHESIS: If we have insights from multiple agents, synthesize
+    if len(agents_consulted) >= 2 and 'data_analyst' in agents_consulted:
+
+        print("\nSYNTHESIS: Reconciling multi-agent insights...")
+
+        insights = {
+            'data': state.get('statistical_analysis'),
+            'knowledge': state.get('knowledge_insights'),
+            'recommendations': state.get('candidate_recommendations')
+        }
+
+        # Check for conflicts
+        conflicts = _detect_conflicts(insights)
+
+        if conflicts:
+            print(f"  Conflicts detected: {conflicts}")
+
+            # Synthesize with LLM
+            llm = create_llm(temperature=0.2)
+
+            synthesis_prompt = f"""You have insights from multiple specialist agents:
+
+DATA ANALYST: {json.dumps(insights['data'], default=str)[:500]}
+KNOWLEDGE EXPERT: {json.dumps(insights['knowledge'], default=str)[:500]}
+RECOMMENDATIONS: {json.dumps(insights['recommendations'], default=str)[:500]}
+
+CONFLICTS DETECTED: {conflicts}
+
+TASK: Provide a synthesized recommendation that:
+1. Resolves conflicts with clear reasoning
+2. Prioritizes based on confidence and safety
+3. Acknowledges uncertainties
+
+Respond with: "SYNTHESIS: [your unified recommendation]" """
+
+            synthesis = llm.invoke([
+                SystemMessage(content=get_supervisor_prompt()),
+                HumanMessage(content=synthesis_prompt)
+            ])
+
+            print(f"  Synthesis: {synthesis.content[:200]}...")
+
+            # Update state with synthesis
+            state['supervisor_synthesis'] = synthesis.content
+        else:
+            print("  No conflicts - insights align")
+
+    # If setup_engineer already ran, evaluate before completing
     if 'setup_engineer' in agents_consulted:
+        final_rec = state.get('final_recommendation')
+
+        if final_rec and final_rec.get('primary'):
+            print("\nQUALITY GATE: Evaluating recommendation...")
+
+            from race_engineer.tools import evaluate_recommendation_quality
+
+            evaluation = evaluate_recommendation_quality.invoke({
+                'recommendation': final_rec['primary'],
+                'driver_feedback': state['driver_feedback'],
+                'statistical_support': state.get('statistical_analysis', {}),
+                'constraints': state.get('driver_constraints')
+            })
+
+            print(f"  Quality Score: {evaluation['evaluation']['overall_score']:.1f}/10")
+            print(f"  Status: {evaluation['quality_gate'].upper()}")
+
+            if not evaluation['recommendation_validated']:
+                print(f"  FAILED: {evaluation['evaluation']['reasoning']}")
+                print(f"  Improvement needed: {evaluation['improvement_areas']}")
+
+                # Could route back to setup_engineer here, but for MVP just flag
+                state['warnings'] = state.get('warnings', []) + [
+                    f"Quality gate failed: {evaluation['evaluation']['reasoning']}"
+                ]
+            else:
+                print(f"  PASSED: {evaluation['evaluation']['reasoning']}")
+
+            # Add evaluation to state
+            state['recommendation_evaluation'] = evaluation
+
         print(" All agents consulted (including setup_engineer) - completing workflow")
         return {
             "messages": [],
@@ -156,6 +275,7 @@ def _parse_supervisor_decision(decision_text: str) -> str:
 
 # ===== DATA ANALYST AGENT =====
 
+@track_agent_metrics('data_analyst')
 def data_analyst_node(state: RaceEngineerState) -> Dict[str, Any]:
     """
     Data Analyst agent loads and analyzes telemetry data.
@@ -248,6 +368,7 @@ def data_analyst_node(state: RaceEngineerState) -> Dict[str, Any]:
 
 # ===== KNOWLEDGE EXPERT AGENT =====
 
+@track_agent_metrics('knowledge_expert')
 def knowledge_expert_node(state: RaceEngineerState) -> Dict[str, Any]:
     """
     Knowledge Expert agent queries setup manuals and historical data.
@@ -314,147 +435,177 @@ def knowledge_expert_node(state: RaceEngineerState) -> Dict[str, Any]:
 
 # ===== SETUP ENGINEER AGENT =====
 
+@track_agent_metrics('setup_engineer')
 def setup_engineer_node(state: RaceEngineerState) -> Dict[str, Any]:
-    """
-    Setup Engineer agent generates specific recommendations.
-    """
+    """Setup Engineer with explicit Think-Act-Observe loop"""
+
     print("\n" + "="*70)
-    print("SETUP ENGINEER: Generating recommendations")
+    print("SETUP ENGINEER: Starting Think-Act-Observe Loop")
     print("="*70)
 
     llm = create_llm(temperature=0.3)
+    max_cycles = 3
+    cycle = 0
 
-    # Check for previous recommendations
-    previous_recs = state.get('previous_recommendations', [])
-    already_recommended_params = {rec.get('parameter') for rec in previous_recs}
+    # Prepare context once
+    context = _build_engineer_context(state)
 
-    print(f"\nPrevious recommendations: {len(previous_recs)}")
-    if previous_recs:
-        print("   Already recommended:")
-        for rec in previous_recs:
-            print(f"      - {rec.get('parameter')}: {rec.get('direction')} by {rec.get('magnitude')}")
+    while cycle < max_cycles:
+        cycle += 1
+        print(f"\n--- Cycle {cycle}/{max_cycles} ---")
 
-    # Build task with EXPLICIT instruction format
-    task_parts = []
-    task_parts.append(f"Driver feedback: {state['driver_feedback']}")
+        # === THINK PHASE ===
+        print("THINK: Planning approach...")
+        think_prompt = f"""Given this context:
+{context}
 
-    # Add statistical analysis if available
-    if state.get('statistical_analysis'):
-        stats = state['statistical_analysis']
-        all_impacts = stats.get('correlations') or stats.get('coefficients', {})
+Previous cycles: {cycle - 1}
 
-        if all_impacts:
-            sorted_impacts = sorted(all_impacts.items(), key=lambda x: abs(x[1]), reverse=True)
-            task_parts.append("\nStatistical Analysis Results:")
-            for param, impact in sorted_impacts[:5]:
-                direction = "Reduce" if impact > 0 else "Increase"
-                task_parts.append(f"  {direction} {param}: {impact:+.3f}")
+THINK: What's your strategy?
+1. What tools do you need to call?
+2. What specific questions need answers?
+3. What's your confidence in the current data?
 
-    # Add knowledge insights
-    if state.get('knowledge_insights'):
-        task_parts.append("\nNASCAR manual guidance consulted")
+Respond with your reasoning and planned tool calls."""
 
-    # CRITICAL: Add explicit format instruction
-    task_parts.append("\nGENERATE RECOMMENDATION:")
-    task_parts.append("Based on the analysis above, recommend ONE specific setup change.")
-    task_parts.append("Format: 'Recommend: [increase/decrease] [parameter] by [amount] [unit]'")
-    task_parts.append("Example: 'Recommend: decrease tire_psi_rr by 1.5 PSI'")
+        thinking = llm.invoke([
+            SystemMessage(content=get_setup_engineer_prompt()),
+            HumanMessage(content=think_prompt)
+        ])
 
-    messages = [
-        SystemMessage(content=get_setup_engineer_prompt()),
-        HumanMessage(content="\n".join(task_parts))
-    ]
+        print(f"Strategy: {thinking.content[:200]}...")
 
-    # Get recommendation WITHOUT tools first
-    response = llm.invoke(messages)
+        # === ACT PHASE ===
+        print("\nACT: Executing tools...")
+        llm_with_tools = llm.bind_tools([check_constraints, validate_physics])
 
-    print(f"\nEngineer Response: {response.content[:300]}...")
+        action_prompt = f"""Based on your strategy:
+{thinking.content}
 
-    # Parse recommendation from response
-    recommendations = _parse_recommendations_from_text(response.content, state)
+Now call the appropriate tools to gather information.
+Context: {context}"""
 
-    updates = {
+        action_response = llm_with_tools.invoke([
+            SystemMessage(content=get_setup_engineer_prompt()),
+            HumanMessage(content=action_prompt)
+        ])
+
+        tool_results = []
+        if hasattr(action_response, 'tool_calls') and action_response.tool_calls:
+            for tc in action_response.tool_calls:
+                result = _execute_tool(tc['name'], tc['args'], [check_constraints, validate_physics])
+                tool_results.append({tc['name']: result})
+                print(f"  {tc['name']}: {str(result)[:100]}...")
+
+        # === OBSERVE PHASE ===
+        print("\nOBSERVE: Reflecting on results...")
+        observe_prompt = f"""You planned: {thinking.content}
+You executed tools and got: {json.dumps(tool_results, default=str)}
+
+OBSERVE:
+1. Did you get the information you needed?
+2. What's your confidence level now (0-1)?
+3. Do you need another cycle or are you ready to recommend?
+
+Respond with JSON:
+{{"confidence": 0.8, "ready": true, "gaps": "string or null", "preliminary_rec": "..."}}"""
+
+        observation = llm.invoke([
+            SystemMessage(content="You are evaluating your own work."),
+            HumanMessage(content=observe_prompt)
+        ])
+
+        print(f"Observation: {observation.content[:200]}...")
+
+        # Parse observation
+        try:
+            obs_data = json.loads(observation.content.strip().replace("```json", "").replace("```", ""))
+            confidence = obs_data.get('confidence', 0.5)
+            ready = obs_data.get('ready', False)
+
+            print(f"  Confidence: {confidence:.1%}")
+
+            if ready and confidence > 0.7:
+                print("  Ready to recommend")
+                break
+            elif cycle == max_cycles:
+                print("  Max cycles reached, proceeding with current confidence")
+                break
+            else:
+                print(f"  Not ready (confidence: {confidence:.1%}), continuing...")
+                context += f"\n\nCycle {cycle} findings: {obs_data.get('gaps', 'Refining approach')}"
+
+        except:
+            print("  Could not parse observation, proceeding")
+            break
+
+    # Generate final recommendation
+    print("\nGenerating final recommendation...")
+    final_rec = _generate_final_recommendation(state, tool_results, llm)
+
+    return {
         "agents_consulted": state['agents_consulted'] + ['setup_engineer'],
-        "messages": [response]
+        "final_recommendation": final_rec,
+        "candidate_recommendations": final_rec.get('recommendations', []),
+        "messages": []  # Add message tracking if needed
     }
 
-    # If we got recommendations, process them
-    if recommendations:
-        print(f"\nParsed {len(recommendations)} recommendation(s)")
 
-        # Deduplicate if there are previous recommendations
-        if previous_recs:
-            dedup_result = filter_unique(recommendations, previous_recs)
-            unique_recs = dedup_result['unique']
-            duplicate_recs = dedup_result['duplicates']
+def _build_engineer_context(state):
+    """Extract relevant context for engineer"""
+    parts = [f"Driver feedback: {state['driver_feedback']}"]
 
-            print(f"   Unique: {len(unique_recs)}, Duplicates: {len(duplicate_recs)}")
-            recommendations = unique_recs
+    if state.get('statistical_analysis'):
+        stats = state['statistical_analysis']
+        parts.append(f"Top correlation: {stats.get('top_parameter')} ({stats.get('top_correlation'):.3f})")
 
-        # Update state with recommendations
-        all_previous = previous_recs.copy()
-        for rec in recommendations:
-            rec['iteration_made'] = state['iteration']
-            rec['agent_source'] = 'setup_engineer'
-            all_previous.append(rec)
+    if state.get('knowledge_insights'):
+        parts.append("NASCAR manual guidance: Available")
 
-        updates['previous_recommendations'] = all_previous
-        updates['candidate_recommendations'] = recommendations
+    previous = state.get('previous_recommendations', [])
+    if previous:
+        parts.append(f"Already tried: {[p['parameter'] for p in previous]}")
 
-        # Set final recommendation
-        if recommendations:
-            primary = recommendations[0]
-            updates['final_recommendation'] = {
-                "primary": primary,
-                "secondary": recommendations[1:] if len(recommendations) > 1 else [],
-                "summary": response.content,
-                "num_unique": len(recommendations),
-                "num_filtered": 0
-            }
+    return "\n".join(parts)
 
-            print(f"\nPRIMARY: {primary['direction']} {primary['parameter']} by {primary['magnitude']} {primary['magnitude_unit']}")
 
-    else:
-        # FALLBACK: Create recommendation from statistical analysis
-        print("\nNo recommendations parsed from LLM response - using fallback")
+def _generate_final_recommendation(state, tool_results, llm):
+    """Generate structured final recommendation"""
 
-        if state.get('statistical_analysis'):
-            stats = state['statistical_analysis']
-            all_impacts = stats.get('correlations') or stats.get('coefficients', {})
+    # Use statistical analysis + tool results to create recommendation
+    stats = state.get('statistical_analysis', {})
+    all_impacts = stats.get('correlations') or stats.get('coefficients', {})
 
-            if all_impacts:
-                # Get top parameter by absolute impact
-                top_param, top_impact = max(all_impacts.items(), key=lambda x: abs(x[1]))
+    if not all_impacts:
+        return {"primary": None, "summary": "Insufficient data for recommendation"}
 
-                # Determine direction
-                direction = "decrease" if top_impact > 0 else "increase"
+    # Get top parameter
+    sorted_params = sorted(all_impacts.items(), key=lambda x: abs(x[1]), reverse=True)
+    top_param, top_impact = sorted_params[0]
 
-                # Estimate magnitude
-                magnitude, unit = _estimate_magnitude(top_param)
+    direction = "decrease" if top_impact > 0 else "increase"
+    magnitude, unit = _estimate_magnitude(top_param)
 
-                fallback_rec = {
-                    "parameter": top_param,
-                    "direction": direction,
-                    "magnitude": magnitude,
-                    "magnitude_unit": unit,
-                    "rationale": f"Statistical analysis shows {top_impact:+.3f} correlation with lap time",
-                    "confidence": 0.8 if abs(top_impact) > 0.3 else 0.6,
-                    "expected_impact": f"Correlation: {top_impact:+.3f}"
-                }
+    rec = {
+        "primary": {
+            "parameter": top_param,
+            "direction": direction,
+            "magnitude": magnitude,
+            "magnitude_unit": unit,
+            "confidence": 0.8 if abs(top_impact) > 0.3 else 0.6,
+            "rationale": f"Statistical analysis shows {top_impact:+.3f} correlation with lap time",
+            "tool_validations": tool_results
+        },
+        "recommendations": [{
+            "parameter": top_param,
+            "direction": direction,
+            "magnitude": magnitude,
+            "magnitude_unit": unit
+        }],
+        "summary": f"Primary: {direction} {top_param} by {magnitude} {unit}"
+    }
 
-                updates['final_recommendation'] = {
-                    "primary": fallback_rec,
-                    "secondary": [],
-                    "summary": f"Primary recommendation: {direction} {top_param} by {magnitude} {unit}",
-                    "num_unique": 1,
-                    "num_filtered": 0
-                }
-
-                updates['candidate_recommendations'] = [fallback_rec]
-
-                print(f"FALLBACK: {direction} {top_param} by {magnitude} {unit}")
-
-    return updates
+    return rec
 
 
 def _parse_recommendations_from_text(text: str, state: RaceEngineerState) -> List[Dict[str, Any]]:
@@ -562,5 +713,26 @@ def _extract_complaint_type(feedback: str) -> str:
         return "bottoming"
     else:
         return "general"
+
+
+def _detect_conflicts(insights: Dict) -> List[str]:
+    """Detect conflicts between agent insights"""
+    conflicts = []
+
+    # Example: Data says X but knowledge says Y
+    data_top = insights.get('data', {}).get('top_parameter')
+
+    if insights.get('knowledge'):
+        knowledge_params = insights['knowledge'].get('parameter_guidance', {})
+        if data_top and data_top not in knowledge_params:
+            conflicts.append(f"Data suggests {data_top} but knowledge has no guidance on it")
+
+    # Check if recommendations conflict with constraints
+    recs = insights.get('recommendations', [])
+    for rec in recs:
+        if rec.get('constraint_violations'):
+            conflicts.append(f"{rec['parameter']}: Violates constraints")
+
+    return conflicts
 
 

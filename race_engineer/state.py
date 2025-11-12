@@ -218,6 +218,22 @@ class RaceEngineerState(TypedDict):
     session_timestamp: str
     """ISO timestamp when session started"""
 
+    # ===== METRICS & INSTRUMENTATION =====
+    agent_metrics: Dict[str, Any]
+    """Performance metrics per agent:
+       {
+           'data_analyst': {
+               'duration_seconds': 2.3,
+               'tool_calls': 5,
+               'tokens_used': 1500,
+               'cost_estimate': 0.002
+           }
+       }
+    """
+
+    total_cost_estimate: float
+    """Cumulative cost estimate for this session (USD)"""
+
 
 def create_initial_state(
     driver_feedback: str,
@@ -305,5 +321,9 @@ def create_initial_state(
 
         # Metadata
         "session_id": session_id,
-        "session_timestamp": datetime.utcnow().isoformat()
+        "session_timestamp": datetime.utcnow().isoformat(),
+
+        # Metrics
+        "agent_metrics": {},
+        "total_cost_estimate": 0.0
     }

@@ -785,6 +785,110 @@ def validate_physics(recommendations: List[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 
+@tool
+def evaluate_recommendation_quality(
+    recommendation: Dict[str, Any],
+    driver_feedback: str,
+    statistical_support: Dict[str, Any],
+    constraints: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """
+    LM-as-judge evaluation of recommendation quality.
+
+    Implements Google AgentOps principle: "Quality Instead of Pass/Fail"
+
+    Evaluates on 4 dimensions:
+    - Relevance: Does it address driver's complaint?
+    - Confidence: Is statistical support strong?
+    - Safety: Are constraints respected?
+    - Clarity: Is guidance specific and actionable?
+
+    Returns quality scores and pass/fail decision.
+    """
+
+    from langchain_anthropic import ChatAnthropic
+    from langchain_core.messages import SystemMessage, HumanMessage
+
+    llm = ChatAnthropic(model="claude-3-haiku-20240307", temperature=0.1)
+
+    # Extract key info
+    param = recommendation.get('parameter', 'unknown')
+    direction = recommendation.get('direction', 'unknown')
+    magnitude = recommendation.get('magnitude', 0)
+    unit = recommendation.get('magnitude_unit', '')
+
+    # Build evaluation prompt
+    eval_prompt = f"""You are a NASCAR setup quality judge. Evaluate this recommendation:
+
+DRIVER COMPLAINT: {driver_feedback}
+
+RECOMMENDATION: {direction.title()} {param} by {magnitude} {unit}
+
+STATISTICAL SUPPORT:
+- Method: {statistical_support.get('method', 'unknown')}
+- Top correlation: {statistical_support.get('top_correlation', 'N/A')}
+- Significant params: {statistical_support.get('significant_params', [])}
+
+CONSTRAINTS: {json.dumps(constraints) if constraints else 'None provided'}
+
+Rate on scale 0-10:
+1. RELEVANCE: Does this address "{driver_feedback}"?
+2. CONFIDENCE: Is the statistical support strong enough?
+3. SAFETY: Does it respect limits and constraints?
+4. CLARITY: Is it specific and actionable?
+
+Respond ONLY with valid JSON (no markdown):
+{{
+  "relevance": 8,
+  "confidence": 7,
+  "safety": 10,
+  "clarity": 9,
+  "overall_score": 8.5,
+  "pass": true,
+  "reasoning": "Strong statistical support (correlation -0.42) directly addresses oversteer complaint. Within NASCAR manual limits."
+}}"""
+
+    try:
+        response = llm.invoke([
+            SystemMessage(content="You are an impartial quality judge for NASCAR setup recommendations."),
+            HumanMessage(content=eval_prompt)
+        ])
+
+        # Parse JSON from response
+        content = response.content.strip()
+        # Remove markdown code blocks if present
+        content = content.replace("```json", "").replace("```", "").strip()
+
+        result = json.loads(content)
+
+        # Ensure all required fields
+        result.setdefault('relevance', 5)
+        result.setdefault('confidence', 5)
+        result.setdefault('safety', 5)
+        result.setdefault('clarity', 5)
+        result.setdefault('overall_score', 5.0)
+        result.setdefault('pass', result['overall_score'] >= 7.0)
+        result.setdefault('reasoning', 'No reasoning provided')
+
+        return {
+            "evaluation": result,
+            "recommendation_validated": result['pass'],
+            "quality_gate": "passed" if result['pass'] else "failed",
+            "improvement_areas": [
+                k for k, v in result.items()
+                if isinstance(v, (int, float)) and v < 7
+            ]
+        }
+
+    except Exception as e:
+        return {
+            "error": str(e),
+            "evaluation": None,
+            "recommendation_validated": False,
+            "quality_gate": "error"
+        }
+
+
 # ===== OUTPUT TOOLS =====
 
 @tool
@@ -987,6 +1091,7 @@ ALL_TOOLS = [
     search_history,
     check_constraints,
     validate_physics,
+    evaluate_recommendation_quality,
     visualize_impacts,
     save_session
 ]

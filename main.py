@@ -140,94 +140,99 @@ def get_telemetry_files(pattern: str) -> List[str]:
 
 
 def display_results(state: dict, verbose: bool = False):
-    """Display final results in a formatted way"""
+    """Display results with Think-Act-Observe and quality metrics"""
+
     print("\n" + "="*70)
-    print("📋 FINAL RESULTS")
+    print("FINAL RESULTS")
     print("="*70)
 
-    # CRITICAL FIX: Check if we have ANY recommendation data
+    # Show Think-Act-Observe cycles if verbose
+    if verbose and state.get('messages'):
+        print("\nAGENT WORKFLOW:")
+        for msg in state['messages'][-5:]:  # Last 5 messages
+            if hasattr(msg, 'content'):
+                preview = msg.content[:100].replace('\n', ' ')
+                print(f"  {msg.__class__.__name__}: {preview}...")
+
+    # Quality gate results
+    if state.get('recommendation_evaluation'):
+        eval_data = state['recommendation_evaluation']['evaluation']
+        print(f"\nQUALITY EVALUATION:")
+        print(f"   Overall Score: {eval_data['overall_score']:.1f}/10")
+        print(f"   Relevance:  {eval_data['relevance']}/10")
+        print(f"   Confidence: {eval_data['confidence']}/10")
+        print(f"   Safety:     {eval_data['safety']}/10")
+        print(f"   Status:     {'PASSED' if eval_data['pass'] else 'FAILED'}")
+        if not eval_data['pass']:
+            print(f"   Reason: {eval_data['reasoning']}")
+
+    # Primary recommendation
     final_rec = state.get('final_recommendation')
-    candidate_recs = state.get('candidate_recommendations', [])
+    if final_rec and final_rec.get('primary'):
+        primary = final_rec['primary']
+        print(f"\nPRIMARY RECOMMENDATION:")
+        print(f"   {primary['parameter'].replace('_', ' ').title()}")
+        print(f"   {primary['direction'].title()} by {primary['magnitude']} {primary['magnitude_unit']}")
+        print(f"   Confidence: {int(primary.get('confidence', 0.8) * 100)}%")
+        print(f"   Rationale: {primary.get('rationale', 'Statistical correlation')}")
+    else:
+        print("\nWARNING: No recommendations generated")
 
-    if not final_rec and not candidate_recs:
-        print("\n⚠️  WARNING: No recommendations were generated")
-        print("   Possible reasons:")
-        print("   - Insufficient data quality")
-        print("   - No significant correlations found")
-        print("   - All parameters violate constraints")
-        print("\n   Review warnings and errors above for details.")
-    elif final_rec:
-        # We have a final recommendation
-        rec = final_rec
-        print("\n💡 RECOMMENDATION:")
+    # Agent metrics
+    if verbose and state.get('agent_metrics'):
+        print(f"\nAGENT PERFORMANCE:")
+        total_time = 0
+        for agent, metrics in state['agent_metrics'].items():
+            print(f"   {agent:20s}: {metrics['duration_seconds']:>5.2f}s, ${metrics['cost_estimate']:.4f}")
+            total_time += metrics['duration_seconds']
 
-        # Try different structures
-        if 'primary' in rec and rec['primary']:
-            primary = rec['primary']
-            print(f"\n  Parameter: {primary.get('parameter', 'Unknown')}")
-            print(f"  Action: {primary.get('direction', '').title()} by {primary.get('magnitude', 0)} {primary.get('magnitude_unit', '')}")
-            if 'confidence' in primary:
-                print(f"  Confidence: {primary['confidence']:.1%}")
-            if 'rationale' in primary:
-                print(f"  Rationale: {primary['rationale']}")
+        total_cost = state.get('total_cost_estimate', 0)
+        print(f"   {'TOTAL':20s}: {total_time:>5.2f}s, ${total_cost:.4f}")
 
-            # Show summary if available
-            if 'summary' in rec:
-                print(f"\n  {rec['summary']}")
-        elif 'summary' in rec:
-            print(f"  {rec['summary']}")
-        else:
-            print("  Recommendation structure incomplete")
-    elif candidate_recs:
-        # Fallback to candidate recommendations
-        print("\n💡 RECOMMENDATION (from candidates):")
-        primary = candidate_recs[0]
-        print(f"\n  Parameter: {primary.get('parameter', 'Unknown')}")
-        print(f"  Action: {primary.get('direction', '').title()} by {primary.get('magnitude', 0)} {primary.get('magnitude_unit', '')}")
-        if 'confidence' in primary:
-            print(f"  Confidence: {primary['confidence']:.1%}")
-        if 'rationale' in primary:
-            print(f"  Rationale: {primary['rationale']}")
+    # Synthesis if available
+    if state.get('supervisor_synthesis'):
+        print(f"\nSUPERVISOR SYNTHESIS:")
+        print(f"   {state['supervisor_synthesis'][:200]}...")
 
     # Data quality
     if state.get('data_quality_report') and verbose:
         qr = state['data_quality_report']
-        print(f"\n📊 DATA QUALITY:")
-        print(f"  • Sessions analyzed: {qr.get('num_sessions', 'N/A')}")
-        print(f"  • Quality score: {qr.get('quality_score', 0):.1%}")
-        print(f"  • Usable parameters: {len(qr.get('usable_parameters', []))}")
+        print(f"\nDATA QUALITY:")
+        print(f"  Sessions analyzed: {qr.get('num_sessions', 'N/A')}")
+        print(f"  Quality score: {qr.get('quality_score', 0):.1%}")
+        print(f"  Usable parameters: {len(qr.get('usable_parameters', []))}")
 
     # Analysis method
     if state.get('statistical_analysis'):
         stats = state['statistical_analysis']
-        print(f"\n📈 ANALYSIS METHOD: {stats.get('method', 'unknown').title()}")
+        print(f"\nANALYSIS METHOD: {stats.get('method', 'unknown').title()}")
         if 'r_squared' in stats:
-            print(f"  • Model R²: {stats['r_squared']:.3f}")
+            print(f"  Model R²: {stats['r_squared']:.3f}")
 
     # Visualizations
     if state.get('generated_visualizations'):
-        print(f"\n📊 VISUALIZATIONS:")
+        print(f"\nVISUALIZATIONS:")
         for viz in state['generated_visualizations']:
-            print(f"  • {viz}")
+            print(f"  {viz}")
 
     # Warnings
     if state.get('warnings'):
-        print(f"\n⚠️  WARNINGS:")
+        print(f"\nWARNINGS:")
         for warning in state['warnings']:
-            print(f"  • {warning}")
+            print(f"  {warning}")
 
     # Errors
     if state.get('errors'):
-        print(f"\n❌ ERRORS:")
+        print(f"\nERRORS:")
         for error in state['errors']:
-            print(f"  • {error.get('message', str(error))}")
+            print(f"  {error.get('message', str(error))}")
 
     # Workflow stats
     if verbose:
-        print(f"\n🔄 WORKFLOW STATS:")
-        print(f"  • Iterations: {state.get('iteration', 0)}")
-        print(f"  • Agents consulted: {', '.join(state.get('agents_consulted', []))}")
-        print(f"  • Tools called: {len(state.get('tools_called', []))}")
+        print(f"\nWORKFLOW STATS:")
+        print(f"  Iterations: {state.get('iteration', 0)}")
+        print(f"  Agents consulted: {', '.join(state.get('agents_consulted', []))}")
+        print(f"  Tools called: {len(state.get('tools_called', []))}")
 
     print("\n" + "="*70)
 
